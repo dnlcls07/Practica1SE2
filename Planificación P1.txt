@@ -1,0 +1,72 @@
+Preguntas a realizar:
+
+¿Cómo compartir datos entre tareas?
+¿Cómo hacer el refresh de la pantalla? (si va a bloquear con mutex)
+¿Prioridades entre escrituras?
+
+Tareas a crear:
+
+Escribir en memoria *
+Escribir en RTC *
+Leer memoria *
+Leer RTC +
+Refrescar LCD +
+Recibir BT (+ eco) - T1,T2 *
+Eco LCD *
+Transmitir BT - T1,T2 *
+Botón - Actualizar hora *
+Movimiento de pantalla *
+
+ISR:
+
+Recepción:
+	Checar máquina de estados
+	Encender task correspondiente para mandar mensaje a usuario
+	
+Transmisión
+	Checar máquina de estados
+	De acuerdo a lo recibido, cambiar estado e imprimir
+
+Botón
+	Activar escritura de RTC con nuevo cambio
+
+Secuencias:
+
+1. LEER
+a. Recibe solicitud de lectura - Recibir BT
+	Leer qué locación y cuánto leer
+	Máquina de estados - checar si en menú y qué opción se escoge
+	Dentro de la estructura recibida por task, incluir estado de máquina
+b. Leer memoria
+	Arreglos? Apuntador? Cómo transferir datos entre tasks?
+c. Transmitir BT
+d. Espera <return>
+	Cambio de estado a menú
+
+2. ESCRIBIR
+a. Recibe solicitud de escritura - Recibir BT
+b. Recibir cadena hasta <return> - Dirección y mensaje
+c. Escribir memoria - leer dirección y mensaje
+d. Transmitir acknowledge
+e. Espera <return>
+	Cambio de estado a menú
+
+3. ESCRIBIR HORA / FECHA / FORMATO DE HORA
+a. Recibe solicitud de escritura - Recibir BT
+b. Recibir cadena (hora:min:seg) (dd/mm/aaaa)
+c. Escribir RTC
+d. Actualizar hora (Leer RTC)
+f. Transmitir acknowledge
+e. Espera <return>
+
+4. COMUNICACIÓN TERMINALES
+a. Transmitir y recibir (eco entre dos terminales)
+b. Transmitir mensaje con <return>
+c. Esperar <escape>
+
+5. ECO LCD
+a. Recibir BT
+b. Eco a LCD (incluir recorrido de pantalla)
+
+6. LEER HORA / FECHA
+a. Actualizar BT con cada refresh de lo pedido
