@@ -15,12 +15,26 @@
 #include "task.h"
 #include "queue.h"
 #include "semphr.h"
+#include "event_groups.h"
 
-SemaphoreHandle_t tx_semaphore;
-SemaphoreHandle_t rx_semaphore;
+#define RING_BUFFER_SIZE 1
+#define RX_EMPTY (1<<0)
+#define RX_nGOING (1<<1)
+#define TX_ECHO_EN (1<<2)
+#define TX_FULL (1<<3)
+
+EventGroupHandle_t uart_event_handle;
 uart_handle_t uart_pc_handle;
 uart_config_t uart_config;
-uart_transfer_t uart_xfer;
+uart_transfer_t uart_rx_xfer;
+uart_transfer_t uart_echo_xfer;
+uint8_t rx_pc_RingBuffer [ RING_BUFFER_SIZE ] =
+{ 0 };
+size_t receivedBytes;
+
+uint8_t rx_data;
+uint8_t tx_data;
+
 void UART0_UserCallback ( UART_Type *base, uart_handle_t *handle,
 		status_t status, void *userData );
 
@@ -29,8 +43,18 @@ void UART0_UserCallback ( UART_Type *base, uart_handle_t *handle,
 		status_t status, void *userData )
 {
 	BaseType_t xHigherPriorityTaskWoken;
+	userData = userData;
 	xHigherPriorityTaskWoken = pdFALSE;
-	xSemaphoreGiveFromISR( rx_semaphore, &xHigherPriorityTaskWoken );
+	if (kStatus_UART_RxIdle == status)
+	{
+		xEventGroupClearBitsFromISR ( uart_event_handle, RX_EMPTY );
+		xEventGroupSetBitsFromISR ( uart_event_handle, RX_nGOING | TX_ECHO_EN,
+				&xHigherPriorityTaskWoken );
+	}
+	if (kStatus_UART_TxIdle == status)
+	{
+		xEventGroupSetBitsFromISR(uart_event_handle, RX_EMPTY, &xHigherPriorityTaskWoken);
+	}
 	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 }
 
@@ -39,20 +63,28 @@ void tx_task ( void * arg )
 {
 	for ( ;; )
 	{
-//		xSemaphoreTake( &tx_semaphore, portMAX_DELAY );	//Wait for reception
-		UART_TransferSendNonBlocking ( UART0, &uart_pc_handle, &uart_xfer );
+		xEventGroupWaitBits ( uart_event_handle, TX_ECHO_EN, pdTRUE, pdTRUE,
+		portMAX_DELAY );
+		tx_data = rx_data;
+		UART_TransferSendNonBlocking ( UART0, &uart_pc_handle,
+				&uart_echo_xfer );
+		xEventGroupClearBits(uart_event_handle, TX_ECHO_EN);
 	}
 }
 
-//Reception task
-void rx_task ( void * arg )
+void rx_task ( void*arg )
 {
+	xEventGroupSetBits ( uart_event_handle, RX_EMPTY | RX_nGOING );
+	UART_TransferStartRingBuffer ( UART0, &uart_pc_handle, rx_pc_RingBuffer,
+	RING_BUFFER_SIZE );
 	for ( ;; )
 	{
-//		xSemaphoreTake( &rx_semaphore, portMAX_DELAY );	//Wait for interrupt
-		UART_TransferReceiveNonBlocking ( UART0, &uart_pc_handle, &uart_xfer,
-		NULL );
-//		xSemaphoreGive( tx_semaphore );	//Echo right after receiving
+		xEventGroupWaitBits ( uart_event_handle, RX_EMPTY | RX_nGOING, pdFALSE,
+		pdTRUE,
+		portMAX_DELAY );
+		UART_TransferReceiveNonBlocking ( UART0, &uart_pc_handle, &uart_rx_xfer,
+				NULL );
+		xEventGroupClearBits ( uart_event_handle, RX_nGOING );
 	}
 }
 
@@ -81,16 +113,21 @@ int main ( void )
 	uart_config.baudRate_Bps = 115200U;
 	uart_config.enableRx = pdTRUE;
 	uart_config.enableTx = pdTRUE;
-	UART_Init ( UART0, &uart_config, CLOCK_GetFreq(UART0_CLK_SRC) );
+	UART_Init ( UART0, &uart_config, CLOCK_GetFreq ( UART0_CLK_SRC ) );
 	UART_TransferCreateHandle ( UART0, &uart_pc_handle, UART0_UserCallback,
 	NULL );
 	NVIC_EnableIRQ ( UART0_RX_TX_IRQn );
 	NVIC_SetPriority ( UART0_RX_TX_IRQn, 7 );
 
-	uart_xfer.data = NULL;
-	uart_xfer.dataSize = sizeof(char);
+	uart_rx_xfer.data = &rx_data;
+	uart_rx_xfer.dataSize = sizeof(char);
+
+	uart_echo_xfer.data = &tx_data;
+	uart_echo_xfer.dataSize = sizeof(char);
 
 	//Task startup
+
+	uart_event_handle = xEventGroupCreate ();
 	xTaskCreate ( rx_task, "RXtask", configMINIMAL_STACK_SIZE, NULL,
 	configMAX_PRIORITIES - 1, NULL );
 	xTaskCreate ( tx_task, "TXtask", configMINIMAL_STACK_SIZE, NULL,
@@ -103,3 +140,4 @@ int main ( void )
 	}
 	return 0;
 }
+
