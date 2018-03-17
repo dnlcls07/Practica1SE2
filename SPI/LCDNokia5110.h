@@ -1,13 +1,12 @@
 /*
- * LCDNokia5110.h
+ * LCDNokia5110.c
  *
- *  Created on: Jun 11, 2014
- *      Author: Luis
+ *  Created on: 10 marzo 2018
+ *      Author: Gustavo Araiza
  */
 
 #ifndef LCDNOKIA5110_H_
 #define LCDNOKIA5110_H_
-
 
 #define SCREENW 84
 #define SCREENH 48
@@ -18,6 +17,7 @@
 #define LCD_CMD 0
 #define DATA_OR_CMD_PIN 3
 #define RESET_PIN 0
+
 /*It configures the LCD*/
 void LCDNokia_init(void);
 /*It writes a byte in the LCD memory. The place of writting is the last place that was indicated by LCDNokia_gotoXY. In the reset state

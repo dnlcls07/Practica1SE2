@@ -175,9 +175,10 @@ void LCDNokia_writeByte(uint8_t DataOrCmd, uint8_t data)
 		GPIO_ClearPinsOutput(GPIOD, (BIT1<<DATA_OR_CMD_PIN));
 
 	DSPI_StartTransfer(SPI0);
-	DSPI_SlaveWriteData(SPI0,data);
+	DSPI_SendOneByte(data);
 	DSPI_StopTransfer(SPI0);
 }
+
 
 void LCDNokia_sendChar(uint8_t character) {
 	uint16_t index = 0;

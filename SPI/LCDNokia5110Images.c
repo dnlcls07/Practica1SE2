@@ -1,3 +1,9 @@
+/*
+ * LCDNokia5110.c
+ *
+ *  Created on: 10 marzo 2018
+ *      Author: Gustavo Araiza
+ */
 
 #include "LCDNokia5110Images.h"
 #include "fsl_port.h"
