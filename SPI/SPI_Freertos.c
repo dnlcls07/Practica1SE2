@@ -45,6 +45,9 @@
 #include "FreeRTOS.h"
 #include "LCDNokia5110.h"
 #include "GlobalFunctions.h"
+#include "semphr.h"
+#include "task.h"
+#include "event_groups.h"
 
 /******************************** ***********************************************
  * Definitions
@@ -60,6 +63,7 @@
 #define TRANSFER_BAUDRATE 500000U /*! Transfer baudrate - 500k */
 #define PTD1_SCK 1
 #define PTD2_SOUT 2
+#define Tranfer_progress 1
 
 /*******************************************************************************
  * Prototypes
@@ -75,6 +79,8 @@ void DSPI_SendOneByte(uint8_t data);
 
 dspi_master_handle_t g_m_handle;
 dspi_transfer_t masterXfer;
+EventGroupHandle_t spi_semaphore;
+EventGroupHandle_t spi_mutex;
 
 volatile bool isTransferCompleted = false;
 
@@ -85,24 +91,27 @@ void DSPI_MasterUserCallback(SPI_Type *base, dspi_master_handle_t *handle, statu
 		__NOP();
 	}
 
-	isTransferCompleted = true;
+	//isTransferCompleted = true;
+	BaseType_t xHigherPriorityTaskWoken;
+	xEventGroupSetBitsFromISR(spi_semaphore, Tranfer_progress, &xHigherPriorityTaskWoken );
+	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 }
 
 void DSPI_SendOneByte(uint8_t data)
 {
-	isTransferCompleted = false;
+
 	masterXfer.txData = &data;
 	masterXfer.rxData = NULL;
 	masterXfer.dataSize = TRANSFER_SIZE;
 	masterXfer.configFlags = kDSPI_MasterCtar0 | EXAMPLE_DSPI_MASTER_PCS_FOR_TRANSFER | kDSPI_MasterPcsContinuous;
-	DSPI_MasterTransferNonBlocking(SPI0, &g_m_handle, &masterXfer);
 
 	/* Wait transfer complete */
+	xSemaphoreTake(spi_mutex,portMAX_DELAY);
+	DSPI_MasterTransferNonBlocking(SPI0, &g_m_handle, &masterXfer);
+	xSemaphoreGive(spi_mutex);
 
-	while (!isTransferCompleted)
-	{
-	}
-
+	xEventGroupWaitBits(spi_semaphore, Tranfer_progress, pdTRUE, pdTRUE, portMAX_DELAY);
+	DSPI_StopTransfer(SPI0);
 }
 
 int main(void)
@@ -114,9 +123,9 @@ int main(void)
 	CLOCK_EnableClock(kCLOCK_PortD);
 	CLOCK_EnableClock(kCLOCK_Spi0);
 	port_pin_config_t config_SPI =
-		{ kPORT_PullDisable, kPORT_SlowSlewRate, kPORT_PassiveFilterDisable,
-				kPORT_OpenDrainDisable, kPORT_LowDriveStrength, kPORT_MuxAlt2,
-				kPORT_UnlockRegister, };
+	{ kPORT_PullDisable, kPORT_SlowSlewRate, kPORT_PassiveFilterDisable,
+			kPORT_OpenDrainDisable, kPORT_LowDriveStrength, kPORT_MuxAlt2,
+			kPORT_UnlockRegister, };
 	PORT_SetPinConfig(PORTD, PTD1_SCK, &config_SPI);
 	PORT_SetPinConfig(PORTD, PTD2_SOUT, &config_SPI);
 
@@ -127,6 +136,10 @@ int main(void)
 	NVIC_SetPriority(SPI0_IRQn,7);
 	DSPI_MasterTransferCreateHandle(SPI0, &g_m_handle, DSPI_MasterUserCallback, NULL);
 	LCDNokia_init(); /*! Configuration function for the LCD */
+
+	spi_semaphore = xEventGroupCreate();
+//	xTaskCreate(spi_espera, "SPI task", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES-3, NULL);
+	vTaskStartScheduler();
 
 	for(;;) {
 		LCDNokia_clear();/*! It clears the information printed in the LCD*/
