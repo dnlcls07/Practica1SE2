@@ -1,0 +1,54 @@
+<
+Dudas:
+Queue de mensajes compuesta de apuntador a inicio de string
+	String limitado dentro de malloc
+	Tamaño de malloc determinado a través de tamaño de queue
+	¿Cuándo checar tamaño de queue?
+	¿Qué tamaño de ringBuffer para entrar a callback?
+
+>
+
+To transmit, the data needs to be a string
+RTC check and LCD print are ALWAYS active
+
+Tasks:
+menu_task:
+Print menu 			- uart_tx_string (uart_type, string) -> uart_tx_queue (uart_type, char) <->
+Wait for input option 		- uart_rx (uart_type, queue) [uart, menu_queue]
+Go to option			- switch / case tasks
+
+mem_write_task:
+Print message			- uart_tx_string (uart_type, string) -> uart_tx_queue (uart_type, char) <->
+Wait for address		- uart_rx (uart_type, queue) [uart, mem_write_queue]
+	Retrieve queue		- mem_write_queue -> mem_addr_val
+Print message			- uart_tx_string (uart_type, string) -> uart_tx_queue (uart_type, char) <->
+Wait for message to write	- uart_rx (uart_type, queue) [uart, mem_write_queue]
+	Retrieve queue		- mem_write_queue -> mem_msg_val
+Acknowledge			- i2c_task (i2c_slave, write, i2c_addr, bytes_to_write)
+	Send to queue		- i2c_queue
+Print message			- uart_tx_string (uart_type, string) -> uart_tx_queue (uart_type, char) <->
+Wait for escape			- uart_rx (uart_type, queue) [uart, mem_write_queue] -> retrieve_queue
+
+mem_read_task:
+Print message			- uart_tx_string (uart_type, string) -> uart_tx_queue (uart_type, char) <->
+Wait for address		- uart_rx (uart_type, queue) [uart, mem_read_queue]
+	Retrieve queue		- mem_read_queue -> mem_addr_val
+Print message			- uart_tx_string (uart_type, string) -> uart_tx_queue (uart_type, char) <->
+Wait for length			- uart_rx (uart_type, queue) [uart, mem_read_queue]
+	Retrieve queue		- mem_read_queue -> mem_size_val
+Print memory data		- uart_tx_string (uart_type, string) -> uart_tx_queue (uart_type, char) <->
+	Read memory		- i2c_task (i2c_slave, read, i2c_addr, bytes_to_get)
+	Retrieve queue		- mem_read_queue -> retrieved_msg
+Wait for escape			- uart_rx (uart_type, queue) [uart, mem_read_queue] -> retrieve_queue
+
+rtc_new_hour:
+Print message
+Wait for new hour
+Print message
+OUT?
+
+rtc_new_date:
+Print message
+Wait for new date
+Print message
+OUT?
