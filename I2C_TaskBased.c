@@ -42,6 +42,7 @@ void i2c_write_task ( void * arg )
 	{
 		i2c_master_transfer_t i2c_master_xfer;
 		uint8_t data_buffer_out = 0x4D;
+
 		i2c_master_xfer.slaveAddress = 0x50;
 		i2c_master_xfer.direction = kI2C_Write;
 		i2c_master_xfer.subaddress = 0x05A0;
@@ -49,6 +50,7 @@ void i2c_write_task ( void * arg )
 		i2c_master_xfer.flags = kI2C_TransferDefaultFlag;
 		i2c_master_xfer.data = &data_buffer_out;
 		i2c_master_xfer.dataSize = sizeof ( data_buffer_out );
+
 		I2C_MasterTransferNonBlocking ( I2C0, &g_m_handle, &i2c_master_xfer );
 		vTaskDelay ( portMAX_DELAY );
 	}
@@ -67,6 +69,7 @@ void i2c_read_task ( void * arg )
 		uint8_t data_buffer;
 		xSemaphoreTake( i2c_semaphore, portMAX_DELAY );
 		vTaskDelay ( pdMS_TO_TICKS( 100 ) );
+
 		i2c_master_transfer_t i2c_master_xfer;
 		i2c_master_xfer.slaveAddress = 0x50;
 		i2c_master_xfer.direction = kI2C_Read;
@@ -75,6 +78,7 @@ void i2c_read_task ( void * arg )
 		i2c_master_xfer.flags = kI2C_TransferDefaultFlag;
 		i2c_master_xfer.data = &data_buffer;
 		i2c_master_xfer.dataSize = sizeof ( data_buffer );
+
 		I2C_MasterTransferNonBlocking ( I2C0, &g_m_handle, &i2c_master_xfer );
 		xSemaphoreTake( i2c_semaphore, portMAX_DELAY );
 		PRINTF ( "%d", &data_buffer );
