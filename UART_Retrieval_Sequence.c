@@ -21,6 +21,7 @@
 #define RETURN_CHAR 0x0D
 
 #define UART_BUFFER_SIZE 64
+#define MAX_I2C_PAGE_SIZE 64
 #define MEM_ADDR_SIZE 4
 
 #define RX_ENABLE (1<<0)
@@ -33,6 +34,11 @@
 #define BCD_ENABLE (1<<2)
 #define BCD_DONE (1<<3)
 
+#define I2C_READ_ENABLE (1<<0)
+#define I2C_READ_DONE (1<<1)
+#define I2C_WRITE_ENABLE (1<<2)
+#define I2C_WRITE_DONE (1<<3)
+
 typedef struct
 {
 	UART_Type * uart_to_comm;
@@ -42,17 +48,21 @@ typedef struct
 
 SemaphoreHandle_t tx_semaphore;
 SemaphoreHandle_t rx_semaphore;
+SemaphoreHandle_t i2c_semaphore;
 
 EventGroupHandle_t uart_event_handle;
 EventGroupHandle_t menu_event_handle;
+EventGroupHandle_t i2c_event_handle;
 
 QueueHandle_t tx_queue;
 QueueHandle_t rx_queue;
 QueueHandle_t addr_queue;
 QueueHandle_t bcd_queue;
+QueueHandle_t i2c_read_queue;
 
 uart_handle_t uart_pc_handle;
 uart_config_t uart_config;
+i2c_master_handle_t g_m_handle;
 
 //UART interrupt handler for reception
 void UART0_UserCallback ( UART_Type *base, uart_handle_t *handle,
@@ -70,6 +80,87 @@ void UART0_UserCallback ( UART_Type *base, uart_handle_t *handle,
 		xSemaphoreGiveFromISR( tx_semaphore, &xHigherPriorityTaskWoken );
 	}
 	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+}
+
+void i2c_master_callback ( I2C_Type *base, i2c_master_handle_t *handle,
+		status_t status, void *userData )
+{
+	BaseType_t xHigherPriorityTaskWoken;
+	xHigherPriorityTaskWoken = pdFALSE;
+	if (kStatus_Success == status)
+	{
+		xSemaphoreGiveFromISR( i2c_semaphore, &xHigherPriorityTaskWoken );
+	}
+	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+}
+
+void i2c_write_task ( void * arg )
+{
+	i2c_master_transfer_t i2c_master_xfer;
+	uint8_t buffer_size;
+	uint8_t data_cnt;
+	uint16_t addr;
+	xSemaphoreGive( i2c_semaphore );
+	for ( ;; )
+	{
+		xEventGroupWaitBits ( i2c_event_handle, I2C_WRITE_ENABLE, pdTRUE,
+		pdTRUE,
+		portMAX_DELAY );
+		buffer_size = uxQueueMessagesWaiting ( rx_queue );
+		xQueueReceive( addr_queue, &data_buffer_out, portMAX_DELAY );
+		uint8_t data_buffer_out [ buffer_size ];
+		for ( data_cnt = 0; data_cnt < buffer_size; data_cnt++ )
+		{
+			xQueueReceive( rx_queue, &data_duffer_out [ data_cnt ],
+					portMAX_DELAY );
+		}
+		i2c_master_xfer.slaveAddress = 0x50;
+		i2c_master_xfer.direction = kI2C_Write;
+		i2c_master_xfer.subaddress = addr;
+		i2c_master_xfer.subaddressSize = 2;
+		i2c_master_xfer.flags = kI2C_TransferDefaultFlag;
+		i2c_master_xfer.data = &data_buffer_out;
+		i2c_master_xfer.dataSize = buffer_size;
+		xSemaphoreTake( i2c_semaphore, portMAX_DELAY );
+		I2C_MasterTransferNonBlocking ( I2C0, &g_m_handle, &i2c_master_xfer );
+		xSemaphoreTake( i2c_semaphore, portMAX_DELAY );
+		xSemaphoreGive( i2c_semaphore );
+		xEventGroupSetBits ( i2c_event_handle, I2C_WRITE_DONE );
+	}
+}
+
+void i2c_read_task ( void * arg )
+{
+	i2c_master_transfer_t i2c_master_xfer;
+	uint16_t addr;
+	uint8_t data_size;
+	uint8_t queue_cnt;
+	xSemaphoreGive( i2c_semaphore );
+	for ( ;; )
+	{
+		xEventGroupWaitBits ( i2c_event_handle, I2C_READ_ENABLE, pdFALSE,
+		pdTRUE, portMAX_DELAY );
+		xQueueReceive( addr_queue, &addr, portMAX_DELAY );
+		xQueueReceive( bcd_queue, &data_size, portMAX_DELAY );
+		uint8_t data_buffer [ data_size ];
+		i2c_master_xfer.slaveAddress = 0x50;
+		i2c_master_xfer.direction = kI2C_Read;
+		i2c_master_xfer.subaddress = addr;
+		i2c_master_xfer.subaddressSize = 2;
+		i2c_master_xfer.flags = kI2C_TransferDefaultFlag;
+		i2c_master_xfer.data = &data_buffer [ 0 ];
+		i2c_master_xfer.dataSize = data_size;
+		xSemaphoreTake( i2c_semaphore, portMAX_DELAY );
+		I2C_MasterTransferNonBlocking ( I2C0, &g_m_handle, &i2c_master_xfer );
+		xSemaphoreTake( i2c_semaphore, portMAX_DELAY );
+		xSemaphoreGive( i2c_semaphore );
+		for ( queue_cnt = 0; queue_cnt < data_size; queue_cnt++ )
+		{
+			xQueueSend( i2c_read_queue, &data_buffer [ queue_cnt ],
+					portMAX_DELAY );
+		}
+		xEventGroupSetBits ( uart_event_handle, I2C_READ_DONE );
+	}
 }
 
 void addr_parser_task ( void * arg )
@@ -173,6 +264,9 @@ void read_sequence_task ( void * arg )
 	xEventGroupSetBits ( menu_event_handle, BCD_ENABLE );
 	xEventGroupWaitBits ( menu_event_handle, BCD_ENABLE | BCD_DONE, pdTRUE,
 	pdTRUE, portMAX_DELAY );
+	xEventGroupSetBits ( i2c_event_handle, I2C_READ_ENABLE );
+	xEventGroupWaitBits ( menu_event_handle, I2C_READ_ENABLE | I2C_READ_DONE,
+	pdTRUE, pdTRUE, portMAX_DELAY );
 }
 
 //Transmission task
@@ -259,9 +353,15 @@ int main ( void )
 			kPORT_OpenDrainDisable, kPORT_LowDriveStrength, kPORT_MuxAlt3,
 			kPORT_UnlockRegister, };
 
+	port_pin_config_t config_i2c =
+	{ kPORT_PullDisable, kPORT_SlowSlewRate, kPORT_PassiveFilterDisable,
+			kPORT_OpenDrainDisable, kPORT_LowDriveStrength, kPORT_MuxAlt2,
+			kPORT_UnlockRegister, };
+
 	PORT_SetPinConfig ( PORTB, 16, &config_uart );
 	PORT_SetPinConfig ( PORTB, 17, &config_uart );
-
+	PORT_SetPinConfig ( PORTB, 2, &config_i2c );
+	PORT_SetPinConfig ( PORTB, 3, &config_i2c );
 //UART configuration
 	UART_GetDefaultConfig ( &uart_config );
 	uart_config.baudRate_Bps = 115200U;
@@ -271,20 +371,31 @@ int main ( void )
 	UART_TransferCreateHandle ( UART0, &uart_pc_handle, UART0_UserCallback,
 	NULL );
 
+	i2c_master_config_t masterConfig;
+	I2C_MasterGetDefaultConfig ( &masterConfig );
+	masterConfig.baudRate_Bps = 100000;
+	I2C_MasterInit ( I2C0, &masterConfig, CLOCK_GetFreq ( kCLOCK_BusClk ) );
+	I2C_MasterTransferCreateHandle ( I2C0, &g_m_handle, i2c_master_callback,
+	NULL );
+
 	NVIC_EnableIRQ ( UART0_RX_TX_IRQn );
 	NVIC_SetPriority ( UART0_RX_TX_IRQn, 8 );
-	;
+	NVIC_EnableIRQ ( I2C0_IRQn );
+	NVIC_SetPriority ( I2C0_IRQn, 7 );
 
 	tx_semaphore = xSemaphoreCreateBinary();
 	rx_semaphore = xSemaphoreCreateBinary();
+	i2c_semaphore = xSemaphoreCreateBinary();
 
 	uart_event_handle = xEventGroupCreate ();
 	menu_event_handle = xEventGroupCreate ();
+	i2c_event_handle = xEventGroupCreate ();
 
 	addr_queue = xQueueCreate( 1, sizeof(uint16_t) );
-	bcd_queue = xQueueCreate( 1, sizeof(uint16_t) );
+	bcd_queue = xQueueCreate( 1, sizeof(uint8_t) );
 	rx_queue = xQueueCreate( UART_BUFFER_SIZE, sizeof(void*) );
 	tx_queue = xQueueCreate( UART_BUFFER_SIZE, sizeof(void*) );
+	i2c_read_queue = xQueueCreate( MAX_I2C_PAGE_SIZE, sizeof(char) );
 
 //Task startup
 
@@ -298,6 +409,8 @@ int main ( void )
 	configMAX_PRIORITIES - 4, NULL );
 	xTaskCreate ( bcd_parser_task, "BCDTask", configMINIMAL_STACK_SIZE, NULL,
 	configMAX_PRIORITIES - 5, NULL );
+	xTaskCreate ( i2c_read_task, "I2CRTask", configMINIMAL_STACK_SIZE, NULL,
+	configMAX_PRIORITIES - 6, NULL );
 	vTaskStartScheduler ();
 
 	while ( 1 )
