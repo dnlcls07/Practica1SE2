@@ -44,6 +44,7 @@
 #define I2C_WRITE_DONE (1<<3)
 
 #define READ_ENABLE 1
+#define WRITE_ENABLE 1
 
 typedef struct
 {
@@ -117,8 +118,7 @@ void i2c_write_task ( void * arg )
 		data_cnt = 0;
 		while ( uxQueueMessagesWaiting ( rx_queue ) != pdFALSE )
 		{
-			xQueueReceive( rx_queue, &data_buffer_out,
-					portMAX_DELAY );
+			xQueueReceive( rx_queue, &data_buffer_out, portMAX_DELAY );
 			i2c_master_xfer.slaveAddress = 0x50;
 			i2c_master_xfer.direction = kI2C_Write;
 			i2c_master_xfer.subaddress = addr + data_cnt;
@@ -182,7 +182,7 @@ void addr_parser_task ( void * arg )
 	uint16_t relative_addr;
 	for ( ;; )
 	{
-		xEventGroupWaitBits ( menu_event_handle, ADDR_ENABLE, pdFALSE, pdTRUE,
+		xEventGroupWaitBits ( menu_event_handle, ADDR_ENABLE, pdTRUE, pdTRUE,
 		portMAX_DELAY );
 		for ( msg_cnt = 0; msg_cnt <= 3; msg_cnt++ )
 		{
@@ -219,7 +219,7 @@ void bcd_parser_task ( void * arg )
 	uint16_t parsed_data;
 	for ( ;; )
 	{
-		xEventGroupWaitBits ( menu_event_handle, BCD_ENABLE, pdFALSE, pdTRUE,
+		xEventGroupWaitBits ( menu_event_handle, BCD_ENABLE, pdTRUE, pdTRUE,
 		portMAX_DELAY );
 		for ( bytesReceived = 0; uxQueueMessagesWaiting ( rx_queue ) != pdFALSE;
 				bytesReceived++ )
@@ -244,8 +244,10 @@ void read_sequence_task ( void * arg )
 	uart_pkg_struct_t * uart_pkg;
 	for ( ;; )
 	{
-//		xEventGroupWaitBits ( menu_event_handle, READ_SEQ_ENABLE, pdFALSE,
-//		pdTRUE, portMAX_DELAY );
+#if WRITE_ENABLE
+		xEventGroupWaitBits ( menu_event_handle, READ_SEQ_ENABLE, pdTRUE,
+		pdTRUE, portMAX_DELAY );
+#endif
 		for ( msg_cnt = 0; read_msg [ msg_cnt ] != '\0'; msg_cnt++ )
 		{
 			uart_pkg = pvPortMalloc ( sizeof(uart_pkg_struct_t) );
@@ -297,7 +299,7 @@ void write_sequence_task ( void * arg )
 {
 	uint8_t msg_cnt;
 	uint8_t read_msg [ ] = "\n\rWrite address:\n\r\0";
-	uint8_t msg_msg [ ] = "\n\rWrite message:\n\r\0";
+	uint8_t msg_msg [ ] = "\n\rWrite message:\nOUT\r\0";
 	uart_pkg_struct_t * uart_pkg;
 	for ( msg_cnt = 0; read_msg [ msg_cnt ] != '\0'; msg_cnt++ )
 	{
@@ -308,14 +310,14 @@ void write_sequence_task ( void * arg )
 		xQueueSend( tx_queue, &uart_pkg, portMAX_DELAY );
 	}
 	xEventGroupSetBits ( uart_event_handle, TX_ENABLE );
-	xEventGroupWaitBits ( uart_event_handle, TX_ENABLE | TX_DONE, pdTRUE,
+	xEventGroupWaitBits ( uart_event_handle, TX_DONE, pdTRUE,
 	pdTRUE, portMAX_DELAY );
 	xQueueSend( rx_queue, &uart_pkg, portMAX_DELAY );
 	xEventGroupSetBits ( uart_event_handle, RX_ENABLE );
-	xEventGroupWaitBits ( uart_event_handle, RX_ENABLE | RX_DONE, pdTRUE,
+	xEventGroupWaitBits ( uart_event_handle, RX_DONE, pdTRUE,
 	pdTRUE, portMAX_DELAY );
 	xEventGroupSetBits ( menu_event_handle, ADDR_ENABLE );
-	xEventGroupWaitBits ( menu_event_handle, ADDR_ENABLE | ADDR_DONE,
+	xEventGroupWaitBits ( menu_event_handle, ADDR_DONE,
 	pdTRUE,
 	pdTRUE, portMAX_DELAY );
 	for ( msg_cnt = 0; msg_msg [ msg_cnt ] != '\0'; msg_cnt++ )
@@ -325,18 +327,18 @@ void write_sequence_task ( void * arg )
 		xQueueSend( tx_queue, &uart_pkg, portMAX_DELAY );
 	}
 	xEventGroupSetBits ( uart_event_handle, TX_ENABLE );
-	xEventGroupWaitBits ( uart_event_handle, TX_ENABLE | TX_DONE, pdTRUE,
+	xEventGroupWaitBits ( uart_event_handle, TX_DONE, pdTRUE,
 	pdTRUE, portMAX_DELAY );
 	xEventGroupSetBits ( uart_event_handle, RX_ENABLE );
-	xEventGroupWaitBits ( uart_event_handle, RX_ENABLE | RX_DONE, pdTRUE,
+	xEventGroupWaitBits ( uart_event_handle, RX_DONE, pdTRUE,
 	pdTRUE, portMAX_DELAY );
 	xEventGroupSetBits ( i2c_event_handle, I2C_WRITE_ENABLE );
 	xEventGroupWaitBits ( menu_event_handle,
-	I2C_WRITE_ENABLE | I2C_WRITE_DONE, pdTRUE, pdTRUE,
+	I2C_WRITE_DONE, pdTRUE, pdTRUE,
 	portMAX_DELAY );
 	xEventGroupSetBits ( menu_event_handle, READ_SEQ_ENABLE );
 	xEventGroupWaitBits ( menu_event_handle,
-	READ_SEQ_DONE | READ_SEQ_ENABLE, pdTRUE, pdTRUE,
+	READ_SEQ_DONE, pdTRUE, pdTRUE,
 	portMAX_DELAY );
 }
 #endif
@@ -352,7 +354,8 @@ void tx_task ( void * arg )
 	xSemaphoreGive( tx_semaphore );
 	for ( ;; )
 	{
-		xEventGroupWaitBits ( uart_event_handle, TX_ENABLE, pdFALSE, pdTRUE,
+		//TODO: check if flag needs to be cleared
+		xEventGroupWaitBits ( uart_event_handle, TX_ENABLE, pdTRUE, pdTRUE,
 		portMAX_DELAY );
 		while ( uxQueueMessagesWaiting ( tx_queue ) != pdFALSE )
 		{
@@ -380,7 +383,7 @@ void rx_task ( void * arg )
 	xSemaphoreGive( rx_semaphore );
 	for ( ;; )
 	{
-		xEventGroupWaitBits ( uart_event_handle, RX_ENABLE, pdFALSE,
+		xEventGroupWaitBits ( uart_event_handle, RX_ENABLE, pdTRUE,
 		pdTRUE,
 		portMAX_DELAY );
 		xQueueReceive( rx_queue, &rx_config, portMAX_DELAY );
@@ -468,28 +471,28 @@ int main ( void )
 //Task startup
 
 	xTaskCreate ( rx_task, "RXtask", configMINIMAL_STACK_SIZE, NULL,
-	configMAX_PRIORITIES - 2, NULL );
+	configMAX_PRIORITIES - 3, NULL );
 	xTaskCreate ( tx_task, "TXtask", configMINIMAL_STACK_SIZE, NULL,
-	configMAX_PRIORITIES - 2, NULL );
+	configMAX_PRIORITIES - 3, NULL );
 #if WRITE_ENABLE
 	xTaskCreate ( write_sequence_task, "WRtask", configMINIMAL_STACK_SIZE, NULL,
 	configMAX_PRIORITIES - 4, NULL );
 #endif
 #if READ_ENABLE
 	xTaskCreate ( read_sequence_task, "RDtask", configMINIMAL_STACK_SIZE, NULL,
-	configMAX_PRIORITIES - 1, NULL );
+	configMAX_PRIORITIES - 4, NULL );
 #endif
 	xTaskCreate ( addr_parser_task, "ADDRtask", configMINIMAL_STACK_SIZE, NULL,
-	configMAX_PRIORITIES - 4, NULL );
+	configMAX_PRIORITIES - 1, NULL );
 	xTaskCreate ( bcd_parser_task, "BCDTask", configMINIMAL_STACK_SIZE, NULL,
-	configMAX_PRIORITIES - 4, NULL );
+	configMAX_PRIORITIES - 1, NULL );
 #if WRITE_ENABLE
 	xTaskCreate ( i2c_write_task, "I2CWTask", configMINIMAL_STACK_SIZE, NULL,
 	configMAX_PRIORITIES - 2, NULL );
 #endif
 #if READ_ENABLE
 	xTaskCreate ( i2c_read_task, "I2CRTask", configMINIMAL_STACK_SIZE, NULL,
-	configMAX_PRIORITIES - 3, NULL );
+	configMAX_PRIORITIES - 2, NULL );
 	vTaskStartScheduler ();
 #endif
 
