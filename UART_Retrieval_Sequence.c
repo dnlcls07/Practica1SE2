@@ -269,6 +269,8 @@ void read_sequence_task ( void * arg )
 		{
 			uart_pkg = pvPortMalloc ( sizeof(uart_pkg_struct_t) );
 			uart_pkg->data = size_msg [ msg_cnt ];
+			uart_pkg->uart_handle_to_comm = &uart_pc_handle;
+			uart_pkg->uart_to_comm = UART0;
 			xQueueSend( tx_queue, &uart_pkg, portMAX_DELAY );
 		}
 		xEventGroupSetBits ( uart_event_handle, TX_ENABLE );
@@ -468,19 +470,19 @@ int main ( void )
 	xTaskCreate ( rx_task, "RXtask", configMINIMAL_STACK_SIZE, NULL,
 	configMAX_PRIORITIES - 2, NULL );
 	xTaskCreate ( tx_task, "TXtask", configMINIMAL_STACK_SIZE, NULL,
-	configMAX_PRIORITIES - 3, NULL );
+	configMAX_PRIORITIES - 2, NULL );
 #if WRITE_ENABLE
 	xTaskCreate ( write_sequence_task, "WRtask", configMINIMAL_STACK_SIZE, NULL,
 	configMAX_PRIORITIES - 4, NULL );
 #endif
 #if READ_ENABLE
 	xTaskCreate ( read_sequence_task, "RDtask", configMINIMAL_STACK_SIZE, NULL,
-	configMAX_PRIORITIES - 3, NULL );
+	configMAX_PRIORITIES - 1, NULL );
 #endif
 	xTaskCreate ( addr_parser_task, "ADDRtask", configMINIMAL_STACK_SIZE, NULL,
-	configMAX_PRIORITIES - 1, NULL );
+	configMAX_PRIORITIES - 4, NULL );
 	xTaskCreate ( bcd_parser_task, "BCDTask", configMINIMAL_STACK_SIZE, NULL,
-	configMAX_PRIORITIES - 1, NULL );
+	configMAX_PRIORITIES - 4, NULL );
 #if WRITE_ENABLE
 	xTaskCreate ( i2c_write_task, "I2CWTask", configMINIMAL_STACK_SIZE, NULL,
 	configMAX_PRIORITIES - 2, NULL );
@@ -497,4 +499,3 @@ int main ( void )
 	}
 	return 0;
 }
-
