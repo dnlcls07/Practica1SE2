@@ -19,6 +19,8 @@
 #include "event_groups.h"
 
 #define RETURN_CHAR 0x0D
+#define ESC_CHAR 0x1B
+#define ALL_EVENTS 0x7FFFFF
 
 #define UART_BUFFER_SIZE 64
 #define MAX_I2C_PAGE_SIZE 64
@@ -33,19 +35,18 @@
 #define ADDR_DONE (1<<1)
 #define BCD_ENABLE (1<<2)
 #define BCD_DONE (1<<3)
+
 #define READ_SEQ_ENABLE (1<<4)
 #define READ_SEQ_DONE (1<<5)
 #define WRITE_SEQ_ENABLE (1<<6)
 #define WRITE_SEQ_DONE (1<<7)
+#define ESC_RECEIVED (1<<8)
+#define ESC_B2MENU (1<<9)
 
 #define I2C_READ_ENABLE (1<<0)
 #define I2C_READ_DONE (1<<1)
 #define I2C_WRITE_ENABLE (1<<2)
 #define I2C_WRITE_DONE (1<<3)
-
-#define PAGE_I2C 1
-#define READ_ENABLE 1
-#define WRITE_ENABLE 1
 
 typedef struct
 {
@@ -103,50 +104,6 @@ void i2c_master_callback ( I2C_Type *base, i2c_master_handle_t *handle,
 	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 }
 
-#ifndef PAGE_I2C
-#if WRITE_ENABLE
-void i2c_write_task ( void * arg )
-{
-	uart_pkg_struct_t * uart_pkg;
-	i2c_master_transfer_t i2c_master_xfer;
-	uint16_t addr;
-	uint8_t data_size;
-	uint8_t queue_cnt;
-	xSemaphoreGive( i2c_semaphore );
-	for (;; )
-	{
-		xEventGroupWaitBits ( i2c_event_handle, I2C_WRITE_ENABLE, pdTRUE,
-				pdTRUE, portMAX_DELAY );
-		data_size = uxQueueMessagesWaiting ( rx_queue );
-		uint8_t data_to_write [ data_size ];
-		xQueueReceive( addr_queue, &addr, portMAX_DELAY );
-		for ( queue_cnt = 0; queue_cnt < data_size; queue_cnt++ )
-		{
-			addr += queue_cnt;
-			xQueueReceive( rx_queue, &uart_pkg, portMAX_DELAY );
-			data_to_write [ queue_cnt ] = uart_pkg->data;
-			i2c_master_xfer.slaveAddress = 0x50;
-			i2c_master_xfer.direction = kI2C_Write;
-			i2c_master_xfer.subaddress = addr;
-			i2c_master_xfer.subaddressSize = 2;
-			i2c_master_xfer.flags = kI2C_TransferDefaultFlag;
-			i2c_master_xfer.data = &data_to_write [ queue_cnt ];
-			i2c_master_xfer.dataSize = sizeof(uint8_t);
-			xSemaphoreTake( i2c_semaphore, portMAX_DELAY );
-			I2C_MasterTransferNonBlocking ( I2C0, &g_m_handle,
-					&i2c_master_xfer );
-			xSemaphoreTake( i2c_semaphore, portMAX_DELAY );
-			vTaskDelay ( pdMS_TO_TICKS( 30 ) );
-			xSemaphoreGive( i2c_semaphore );
-		}
-		xEventGroupSetBits ( i2c_event_handle, I2C_WRITE_DONE );
-	}
-}
-#endif
-#endif
-
-#if PAGE_I2C
-#if WRITE_ENABLE
 void i2c_write_task ( void * arg )
 {
 	uart_pkg_struct_t * uart_pkg;
@@ -182,10 +139,7 @@ void i2c_write_task ( void * arg )
 		xEventGroupSetBits ( i2c_event_handle, I2C_WRITE_DONE );
 	}
 }
-#endif
-#endif
 
-#if READ_ENABLE
 void i2c_read_task ( void * arg )
 {
 	i2c_master_transfer_t i2c_master_xfer;
@@ -219,7 +173,6 @@ void i2c_read_task ( void * arg )
 		xEventGroupSetBits ( i2c_event_handle, I2C_READ_DONE );
 	}
 }
-#endif
 
 void addr_parser_task ( void * arg )
 {
@@ -283,19 +236,80 @@ void bcd_parser_task ( void * arg )
 	}
 }
 
-#if READ_ENABLE
+void esc_sequence_task ( void * arg )
+{
+	for ( ;; )
+	{
+		xEventGroupWaitBits ( menu_event_handle, ESC_RECEIVED, pdTRUE, pdTRUE,
+		portMAX_DELAY );
+		xEventGroupClearBits ( uart_event_handle, ALL_EVENTS );
+		xEventGroupClearBits ( i2c_event_handle, ALL_EVENTS );
+		xEventGroupClearBits ( menu_event_handle, ALL_EVENTS );
+		xQueueReset( rx_queue );
+		xEventGroupSetBits ( menu_event_handle, ESC_B2MENU );
+	}
+}
+
+void menu_sequence_task ( void * arg )
+{
+	uint8_t menu_msg [ ] = "\n\rChoose a menu:\n\r1)Write\n\r2)Read\n\r\0";
+	uart_pkg_struct_t * uart_pkg;
+	uint8_t msg_cnt;
+	uint32_t waitForSeq;
+	for ( ;; )
+	{
+		for ( msg_cnt = 0; menu_msg [ msg_cnt ] != '\0'; msg_cnt++ )
+		{
+			uart_pkg = pvPortMalloc ( sizeof(uart_pkg_struct_t) );
+			uart_pkg->data = menu_msg [ msg_cnt ];
+			uart_pkg->uart_handle_to_comm = &uart_pc_handle;
+			uart_pkg->uart_to_comm = UART0;
+			xQueueSend( tx_queue, &uart_pkg, portMAX_DELAY );
+		}
+		xEventGroupSetBits ( uart_event_handle, TX_ENABLE );
+		xEventGroupWaitBits ( uart_event_handle, TX_DONE, pdTRUE, pdTRUE,
+		portMAX_DELAY );
+		uart_pkg = pvPortMalloc ( sizeof(uart_pkg_struct_t) );
+		uart_pkg->data = 0;
+		uart_pkg->uart_handle_to_comm = &uart_pc_handle;
+		uart_pkg->uart_to_comm = UART0;
+		xQueueSend( rx_cfg_queue, &uart_pkg, portMAX_DELAY );
+		xEventGroupSetBits ( uart_event_handle, RX_ENABLE );
+		xEventGroupWaitBits ( uart_event_handle, RX_DONE, pdTRUE, pdTRUE,
+		portMAX_DELAY );
+		xQueueReceive( rx_queue, &uart_pkg, portMAX_DELAY );
+		switch ( uart_pkg->data )
+		{
+			case '1' :
+				xEventGroupSetBits ( menu_event_handle, WRITE_SEQ_ENABLE );
+				waitForSeq = WRITE_SEQ_DONE;
+				break;
+			case '2' :
+				xEventGroupSetBits ( menu_event_handle, READ_SEQ_ENABLE );
+				waitForSeq = READ_SEQ_DONE;
+				break;
+			default :
+				break;
+		}
+		xEventGroupWaitBits ( menu_event_handle, waitForSeq | ESC_B2MENU,
+		pdTRUE,
+		pdFALSE, portMAX_DELAY );
+	}
+}
+
 void read_sequence_task ( void * arg )
 {
 	uint8_t msg_cnt;
 	uint8_t read_msg [ ] = "\n\rRead address:\n\r\0";
 	uint8_t size_msg [ ] = "\n\rRead size:\n\r\0";
 	uart_pkg_struct_t * uart_pkg;
+	uart_pkg_struct_t * i2c_pkg;
 	for ( ;; )
 	{
-#if WRITE_ENABLE
+
 		xEventGroupWaitBits ( menu_event_handle, READ_SEQ_ENABLE, pdTRUE,
 		pdTRUE, portMAX_DELAY );
-#endif
+
 		for ( msg_cnt = 0; read_msg [ msg_cnt ] != '\0'; msg_cnt++ )
 		{
 			uart_pkg = pvPortMalloc ( sizeof(uart_pkg_struct_t) );
@@ -348,9 +362,10 @@ void read_sequence_task ( void * arg )
 				msg_cnt++ )
 		{
 			uart_pkg = pvPortMalloc ( sizeof(uart_pkg_struct_t) );
-			xQueueReceive( i2c_read_queue, &uart_pkg->data, portMAX_DELAY );
-			uart_pkg->uart_handle_to_comm = &uart_pc_handle;
-			uart_pkg->uart_to_comm = UART0;
+			xQueueReceive( i2c_read_queue, &i2c_pkg->data, portMAX_DELAY );
+			vPortFree ( uart_pkg );
+			i2c_pkg->uart_handle_to_comm = &uart_pc_handle;
+			i2c_pkg->uart_to_comm = UART0;
 			xQueueSend( tx_queue, &uart_pkg, portMAX_DELAY );
 		}
 		xEventGroupSetBits ( uart_event_handle, TX_ENABLE );
@@ -359,66 +374,65 @@ void read_sequence_task ( void * arg )
 		xEventGroupSetBits ( menu_event_handle, READ_SEQ_DONE );
 	}
 }
-#endif
 
-#if WRITE_ENABLE
 void write_sequence_task ( void * arg )
 {
 	uint8_t msg_cnt;
 	uint8_t read_msg [ ] = "\n\rWrite address:\n\r\0";
 	uint8_t msg_msg [ ] = "\n\rWrite message:\n\r\0";
 	uart_pkg_struct_t * uart_pkg;
-	for ( msg_cnt = 0; read_msg [ msg_cnt ] != '\0'; msg_cnt++ )
+	for ( ;; )
 	{
+		xEventGroupWaitBits ( menu_event_handle, WRITE_SEQ_ENABLE, pdTRUE,
+		pdTRUE, portMAX_DELAY );
+		for ( msg_cnt = 0; read_msg [ msg_cnt ] != '\0'; msg_cnt++ )
+		{
+			uart_pkg = pvPortMalloc ( sizeof(uart_pkg_struct_t) );
+			uart_pkg->data = read_msg [ msg_cnt ];
+			uart_pkg->uart_handle_to_comm = &uart_pc_handle;
+			uart_pkg->uart_to_comm = UART0;
+			xQueueSend( tx_queue, &uart_pkg, portMAX_DELAY );
+		}
+		xEventGroupSetBits ( uart_event_handle, TX_ENABLE );
+		xEventGroupWaitBits ( uart_event_handle, TX_DONE, pdTRUE, pdTRUE,
+		portMAX_DELAY );
 		uart_pkg = pvPortMalloc ( sizeof(uart_pkg_struct_t) );
-		uart_pkg->data = read_msg [ msg_cnt ];
+		uart_pkg->data = 0;
 		uart_pkg->uart_handle_to_comm = &uart_pc_handle;
 		uart_pkg->uart_to_comm = UART0;
-		xQueueSend( tx_queue, &uart_pkg, portMAX_DELAY );
-	}
-	xEventGroupSetBits ( uart_event_handle, TX_ENABLE );
-	xEventGroupWaitBits ( uart_event_handle, TX_DONE, pdTRUE, pdTRUE,
-	portMAX_DELAY );
-	uart_pkg = pvPortMalloc ( sizeof(uart_pkg_struct_t) );
-	uart_pkg->data = 0;
-	uart_pkg->uart_handle_to_comm = &uart_pc_handle;
-	uart_pkg->uart_to_comm = UART0;
-	xQueueSend( rx_cfg_queue, &uart_pkg, portMAX_DELAY );
-	xEventGroupSetBits ( uart_event_handle, RX_ENABLE );
-	xEventGroupWaitBits ( uart_event_handle, RX_DONE, pdTRUE, pdTRUE,
-	portMAX_DELAY );
-	xEventGroupSetBits ( menu_event_handle, ADDR_ENABLE );
-	xEventGroupWaitBits ( menu_event_handle, ADDR_DONE, pdTRUE, pdTRUE,
-	portMAX_DELAY );
-	for ( msg_cnt = 0; msg_msg [ msg_cnt ] != '\0'; msg_cnt++ )
-	{
+		xQueueSend( rx_cfg_queue, &uart_pkg, portMAX_DELAY );
+		xEventGroupSetBits ( uart_event_handle, RX_ENABLE );
+		xEventGroupWaitBits ( uart_event_handle, RX_DONE, pdTRUE, pdTRUE,
+		portMAX_DELAY );
+		xEventGroupSetBits ( menu_event_handle, ADDR_ENABLE );
+		xEventGroupWaitBits ( menu_event_handle, ADDR_DONE, pdTRUE, pdTRUE,
+		portMAX_DELAY );
+		for ( msg_cnt = 0; msg_msg [ msg_cnt ] != '\0'; msg_cnt++ )
+		{
+			uart_pkg = pvPortMalloc ( sizeof(uart_pkg_struct_t) );
+			uart_pkg->data = msg_msg [ msg_cnt ];
+			uart_pkg->uart_handle_to_comm = &uart_pc_handle;
+			uart_pkg->uart_to_comm = UART0;
+			xQueueSend( tx_queue, &uart_pkg, portMAX_DELAY );
+		}
+		xEventGroupSetBits ( uart_event_handle, TX_ENABLE );
+		xEventGroupWaitBits ( uart_event_handle, TX_DONE, pdTRUE, pdTRUE,
+		portMAX_DELAY );
 		uart_pkg = pvPortMalloc ( sizeof(uart_pkg_struct_t) );
-		uart_pkg->data = msg_msg [ msg_cnt ];
+		uart_pkg->data = 0;
 		uart_pkg->uart_handle_to_comm = &uart_pc_handle;
 		uart_pkg->uart_to_comm = UART0;
-		xQueueSend( tx_queue, &uart_pkg, portMAX_DELAY );
+		xQueueSend( rx_cfg_queue, &uart_pkg, portMAX_DELAY );
+		xEventGroupSetBits ( uart_event_handle, RX_ENABLE );
+		xEventGroupWaitBits ( uart_event_handle, RX_DONE, pdTRUE, pdTRUE,
+		portMAX_DELAY );
+		xEventGroupSetBits ( i2c_event_handle, I2C_WRITE_ENABLE );
+		xEventGroupWaitBits ( i2c_event_handle,
+		I2C_WRITE_DONE, pdTRUE, pdTRUE,
+		portMAX_DELAY );
+		xEventGroupSetBits ( menu_event_handle, WRITE_SEQ_DONE );
 	}
-	xEventGroupSetBits ( uart_event_handle, TX_ENABLE );
-	xEventGroupWaitBits ( uart_event_handle, TX_DONE, pdTRUE, pdTRUE,
-	portMAX_DELAY );
-	uart_pkg = pvPortMalloc ( sizeof(uart_pkg_struct_t) );
-	uart_pkg->data = 0;
-	uart_pkg->uart_handle_to_comm = &uart_pc_handle;
-	uart_pkg->uart_to_comm = UART0;
-	xQueueSend( rx_cfg_queue, &uart_pkg, portMAX_DELAY );
-	xEventGroupSetBits ( uart_event_handle, RX_ENABLE );
-	xEventGroupWaitBits ( uart_event_handle, RX_DONE, pdTRUE, pdTRUE,
-	portMAX_DELAY );
-	xEventGroupSetBits ( i2c_event_handle, I2C_WRITE_ENABLE );
-	xEventGroupWaitBits ( i2c_event_handle,
-	I2C_WRITE_DONE, pdTRUE, pdTRUE,
-	portMAX_DELAY );
-	xEventGroupSetBits ( menu_event_handle, READ_SEQ_ENABLE );
-	xEventGroupWaitBits ( menu_event_handle,
-	READ_SEQ_DONE, pdTRUE, pdTRUE,
-	portMAX_DELAY );
 }
-#endif
 
 //Transmission task
 void tx_task ( void * arg )
@@ -463,7 +477,7 @@ void rx_task ( void * arg )
 		pdTRUE,
 		portMAX_DELAY );
 		xQueueReceive( rx_cfg_queue, &rx_config, portMAX_DELAY );
-		while ( RETURN_CHAR != rx_data )
+		while ( ( RETURN_CHAR != rx_data ) && ( ESC_CHAR != rx_data ) )
 		{
 			xSemaphoreTake( rx_semaphore, portMAX_DELAY );
 			UART_TransferReceiveNonBlocking ( rx_config->uart_to_comm,
@@ -474,10 +488,17 @@ void rx_task ( void * arg )
 			rx_data_ptr->data = rx_data;
 			rx_data_ptr->uart_handle_to_comm = &uart_pc_handle;
 			rx_data_ptr->uart_to_comm = UART0;
-			if ( RETURN_CHAR != rx_data)
+			if ( ( RETURN_CHAR != rx_data ) && ( ESC_CHAR != rx_data ))
+			{
 				xQueueSend( rx_queue, &rx_data_ptr, portMAX_DELAY );
+			}
 		}
 		vPortFree ( rx_config );
+		if (ESC_CHAR == rx_data)
+		{
+			rx_data = 0;
+			xEventGroupSetBits ( menu_event_handle, ESC_RECEIVED );
+		}
 		rx_data = 0;
 		xEventGroupSetBits ( uart_event_handle, RX_DONE );
 	}
@@ -547,36 +568,37 @@ int main ( void )
 
 //Task startup
 
-	xTaskCreate ( rx_task, "RXtask", configMINIMAL_STACK_SIZE, NULL,
-	configMAX_PRIORITIES - 2, NULL );
-	xTaskCreate ( tx_task, "TXtask", configMINIMAL_STACK_SIZE, NULL,
-	configMAX_PRIORITIES - 2, NULL );
-#if WRITE_ENABLE
+	xTaskCreate ( esc_sequence_task, "ESCTask", configMINIMAL_STACK_SIZE, NULL,
+	configMAX_PRIORITIES, NULL );
+	xTaskCreate ( menu_sequence_task, "MenuTask", configMINIMAL_STACK_SIZE,
+	NULL, configMAX_PRIORITIES - 1, NULL );
+
 	xTaskCreate ( write_sequence_task, "WRtask", configMINIMAL_STACK_SIZE,
 	NULL,
-	configMAX_PRIORITIES - 1, NULL );
-#endif
-#if READ_ENABLE
+	configMAX_PRIORITIES - 2, NULL );
 	xTaskCreate ( read_sequence_task, "RDtask", configMINIMAL_STACK_SIZE,
 	NULL,
-	configMAX_PRIORITIES - 1, NULL );
-#endif
+	configMAX_PRIORITIES - 2, NULL );
+
+	xTaskCreate ( rx_task, "RXtask", configMINIMAL_STACK_SIZE, NULL,
+	configMAX_PRIORITIES - 3, NULL );
+	xTaskCreate ( tx_task, "TXtask", configMINIMAL_STACK_SIZE, NULL,
+	configMAX_PRIORITIES - 3, NULL );
+
+	xTaskCreate ( i2c_write_task, "I2CWTask", configMINIMAL_STACK_SIZE,
+	NULL,
+	configMAX_PRIORITIES - 4, NULL );
+	xTaskCreate ( i2c_read_task, "I2CRTask", configMINIMAL_STACK_SIZE, NULL,
+	configMAX_PRIORITIES - 4, NULL );
+
 	xTaskCreate ( addr_parser_task, "ADDRtask", configMINIMAL_STACK_SIZE,
 	NULL,
 	configMAX_PRIORITIES - 4, NULL );
 	xTaskCreate ( bcd_parser_task, "BCDTask", configMINIMAL_STACK_SIZE,
 	NULL,
 	configMAX_PRIORITIES - 4, NULL );
-#if WRITE_ENABLE
-	xTaskCreate ( i2c_write_task, "I2CWTask", configMINIMAL_STACK_SIZE,
-	NULL,
-	configMAX_PRIORITIES - 3, NULL );
-#endif
-#if READ_ENABLE
-	xTaskCreate ( i2c_read_task, "I2CRTask", configMINIMAL_STACK_SIZE, NULL,
-	configMAX_PRIORITIES - 3, NULL );
+
 	vTaskStartScheduler ();
-#endif
 
 	while ( 1 )
 	{
