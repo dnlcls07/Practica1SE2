@@ -31,6 +31,7 @@ void i2c_init_task ( void * arg )
 
 	xTaskCreate ( i2c_task, "I2CTask", configMINIMAL_STACK_SIZE,
 			( void* ) cfg_struct, configMAX_PRIORITIES - 4, NULL );
+	vTaskDelay ( portMAX_DELAY );
 }
 
 void i2c_master_callback ( I2C_Type *base, i2c_master_handle_t *handle,

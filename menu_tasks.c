@@ -44,6 +44,8 @@ void Menu_init_task ( void * arg )
 	xTaskCreate ( bcd_parser_task, "BCDTask", configMINIMAL_STACK_SIZE,
 			( void * ) UART0_cfg_menu_ptr, configMAX_PRIORITIES - 4, NULL );
 
+	vTaskDelay ( portMAX_DELAY );
+
 }
 
 void addr_parser_task ( void * arg )
@@ -127,6 +129,9 @@ void esc_sequence_task ( void * arg )
 
 void menu_sequence_task ( void * arg )
 {
+	vTaskDelete ( Menu_init_task );
+	vTaskDelete ( i2c_init_task );
+	vTaskDelete ( UART0_init_task );
 	menu_cfg_struct_t * cfg_struct = ( menu_cfg_struct_t * ) arg;
 	uint8_t menu_msg [ ] = "\n\rChoose a menu:\n\r1)Write\n\r2)Read\n\r\0";
 	uart_pkg_struct_t * uart_pkg;
@@ -264,8 +269,8 @@ void read_sequence_task ( void * arg )
 		xQueueSend( cfg_struct->i2c_queue, &i2c_xfer_ptr, portMAX_DELAY );
 		xEventGroupSetBits ( cfg_struct->i2c_event_handle, I2C_ENABLE );
 		xEventGroupWaitBits ( cfg_struct->i2c_event_handle, I2C_DONE, pdTRUE,
-				pdTRUE,
-				portMAX_DELAY );
+		pdTRUE,
+		portMAX_DELAY );
 		for ( msg_cnt = 0; msg_cnt < data_size; msg_cnt++ )
 		{
 			i2c_pkg = pvPortMalloc ( sizeof(uart_pkg_struct_t) );
@@ -344,7 +349,7 @@ void write_sequence_task ( void * arg )
 		xQueueSend( cfg_struct->rx_cfg_queue, &uart_pkg, portMAX_DELAY );
 		xEventGroupSetBits ( cfg_struct->uart_event_handle, RX_ENABLE );
 		xEventGroupWaitBits ( cfg_struct->uart_event_handle, RX_DONE, pdTRUE,
-				pdTRUE, portMAX_DELAY );
+		pdTRUE, portMAX_DELAY );
 
 		xQueueReceive( cfg_struct->addr_queue, &addr, portMAX_DELAY );
 		msg_size = uxQueueMessagesWaiting ( cfg_struct->rx_queue );
@@ -364,8 +369,8 @@ void write_sequence_task ( void * arg )
 		xQueueSend( cfg_struct->i2c_queue, &i2c_xfer_ptr, portMAX_DELAY );
 		xEventGroupSetBits ( cfg_struct->i2c_event_handle, I2C_ENABLE );
 		xEventGroupWaitBits ( cfg_struct->i2c_event_handle, I2C_DONE, pdTRUE,
-				pdTRUE,
-				portMAX_DELAY );
+		pdTRUE,
+		portMAX_DELAY );
 
 		xEventGroupSetBits ( cfg_struct->menu_event_handle, WRITE_SEQ_DONE );
 	}

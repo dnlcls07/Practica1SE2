@@ -42,6 +42,7 @@ void UART0_init_task ( void * arg )
 			( void* ) cfg_struct, configMAX_PRIORITIES - 3, NULL );
 	xTaskCreate ( tx_task, "UART0_TXtask", configMINIMAL_STACK_SIZE,
 			( void* ) cfg_struct, configMAX_PRIORITIES - 3, NULL );
+	vTaskDelay ( portMAX_DELAY );
 }
 
 //UART interrupt handler for reception
