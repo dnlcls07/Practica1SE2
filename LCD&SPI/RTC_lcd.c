@@ -25,7 +25,7 @@ int main(void)
 	SPI_Init_t();
 	while (1)
 	{
-		LCD_SetDate();
+		LCD_SetTime();
 	}
 	return 0;
 }

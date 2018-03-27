@@ -43,24 +43,31 @@
 #include "fsl_dspi.h"
 #include "fsl_gpio.h"
 #include "fsl_port.h"
-#include "FreeRTOS.h"
 #include "LCDNokia5110.h"
 #include "GlobalFunctions.h"
 #include "SPI_LCD.h"
+#include <stdlib.h>
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
 
 
 dspi_master_handle_t g_m_handle_SPI;
 dspi_transfer_t masterXfer_SPI;
+//SemaphoreHandle_t Transfer_Dspi_Semaphore;
 
 volatile bool isTransferCompleted = false;
 
 void DSPI_MasterUserCallback(SPI_Type *base, dspi_master_handle_t *handle, status_t status, void *userData)
 {
+//	userData = userData;
+//	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 	if (status == kStatus_Success)
 	{
+		//xSemaphoreGiveFromISR(Transfer_Dspi_Semaphore, &xHigherPriorityTaskWoken);
 		__NOP();
 	}
-
+	//portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 	isTransferCompleted = true;
 }
 
@@ -70,17 +77,22 @@ void DSPI_SendOneByte(uint8_t data)
 	masterXfer_SPI.txData = &data;
 	masterXfer_SPI.rxData = NULL;
 	masterXfer_SPI.dataSize = TRANSFER_SIZE;
-	masterXfer_SPI.configFlags = kDSPI_MasterCtar0 | EXAMPLE_DSPI_MASTER_PCS_FOR_TRANSFER | kDSPI_MasterPcsContinuous;
+	masterXfer_SPI.configFlags = kDSPI_MasterCtar0 | kDSPI_MasterPcs0 | kDSPI_MasterPcsContinuous;
+
 	DSPI_MasterTransferNonBlocking(SPI0, &g_m_handle_SPI, &masterXfer_SPI);
 	/* Wait transfer complete */
+	//xSemaphoreTake(Transfer_Dspi_Semaphore, portMAX_DELAY);
 	while (!isTransferCompleted)
 	{
 	}
-
 }
+//void dummy()
+//{
 
+//}
 void SPI_Init_t()
 {
+//	vTaskStartScheduler();
 	dspi_master_config_t masterConfig;
 	uint32_t srcClock_Hz;
 
@@ -96,8 +108,12 @@ void SPI_Init_t()
 	DSPI_MasterGetDefaultConfig(&masterConfig);
 	srcClock_Hz = DSPI_MASTER_CLK_FREQ;
 	DSPI_MasterInit(SPI0,&masterConfig,srcClock_Hz);
-	NVIC_EnableIRQ(SPI0_IRQn);
-	NVIC_SetPriority(SPI0_IRQn,7);
 	DSPI_MasterTransferCreateHandle(SPI0, &g_m_handle_SPI, DSPI_MasterUserCallback, NULL);
+	NVIC_EnableIRQ(SPI0_IRQn);
+	NVIC_SetPriority(SPI0_IRQn,5);
+
+	//xTaskCreate(dummy, "dummy task", configMINIMAL_STACK_SIZE, NULL, configMAX_PRIORITIES-1, NULL);
+
 	LCDNokia_init(); /*! Configuration function for the LCD */
+	LCDNokia_clear();
 }
