@@ -65,7 +65,7 @@ typedef struct
 	uint8_t data;
 } uart_pkg_struct_t;
 
-void Menu_init_task ( void * arg );
+void UART0_menu_init_task ( void * arg );
 void addr_parser_task ( void * arg );
 void bcd_parser_task ( void * arg );
 void esc_sequence_task ( void * arg );

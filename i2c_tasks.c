@@ -9,7 +9,6 @@
 
 void i2c_init_task ( void * arg )
 {
-	menu_cfg_struct_t * cfg_struct = ( menu_cfg_struct_t * ) arg;
 	port_pin_config_t config_i2c =
 	{ kPORT_PullDisable, kPORT_SlowSlewRate, kPORT_PassiveFilterDisable,
 			kPORT_OpenDrainDisable, kPORT_LowDriveStrength, kPORT_MuxAlt2,
@@ -28,9 +27,6 @@ void i2c_init_task ( void * arg )
 	NVIC_SetPriority ( I2C0_IRQn, 7 );
 
 	i2c_semaphore = xSemaphoreCreateBinary();
-
-	xTaskCreate ( i2c_task, "I2CTask", configMINIMAL_STACK_SIZE,
-			( void* ) cfg_struct, configMAX_PRIORITIES - 4, NULL );
 	vTaskDelay ( portMAX_DELAY );
 }
 
@@ -54,8 +50,8 @@ void i2c_task ( void * arg )
 	for ( ;; )
 	{
 		xEventGroupWaitBits ( cfg_struct->i2c_event_handle, I2C_ENABLE, pdTRUE,
-				pdTRUE,
-				portMAX_DELAY );
+		pdTRUE,
+		portMAX_DELAY );
 		xQueueReceive( cfg_struct->i2c_queue, &i2c_ptr, portMAX_DELAY );
 		xSemaphoreTake( i2c_semaphore, portMAX_DELAY );
 		I2C_MasterTransferNonBlocking ( I2C0, &g_m_handle, i2c_ptr );

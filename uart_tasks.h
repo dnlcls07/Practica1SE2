@@ -32,11 +32,18 @@ SemaphoreHandle_t UART1_rx_semaphore;
 SemaphoreHandle_t UART1_tx_semaphore;
 
 uart_handle_t uart_pc_handle;
-uart_config_t uart_config;
+uart_handle_t uart_bt_handle;
+uart_config_t uart_pc_config;
+uart_config_t uart_bt_config;
 
 void UART0_init_task ( void * arg );
 
+void UART1_init_task ( void * arg );
+
 void UART0_UserCallback ( UART_Type *base, uart_handle_t *handle,
+		status_t status, void *userData );
+
+void UART1_UserCallback ( UART_Type *base, uart_handle_t *handle,
 		status_t status, void *userData );
 
 void tx_task ( void * arg );

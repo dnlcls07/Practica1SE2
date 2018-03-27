@@ -18,29 +18,67 @@ void UART0_init_task ( void * arg )
 	CLOCK_EnableClock ( kCLOCK_PortB );
 	CLOCK_EnableClock ( kCLOCK_Uart0 );
 
-	port_pin_config_t config_uart =
+	port_pin_config_t config_pc_uart =
 	{ kPORT_PullDisable, kPORT_SlowSlewRate, kPORT_PassiveFilterDisable,
 			kPORT_OpenDrainDisable, kPORT_LowDriveStrength, kPORT_MuxAlt3,
 			kPORT_UnlockRegister, };
 
-	PORT_SetPinConfig ( PORTB, 16, &config_uart );
-	PORT_SetPinConfig ( PORTB, 17, &config_uart );
+	PORT_SetPinConfig ( PORTB, 16, &config_pc_uart );
+	PORT_SetPinConfig ( PORTB, 17, &config_pc_uart );
 
 	NVIC_EnableIRQ ( UART0_RX_TX_IRQn );
 	NVIC_SetPriority ( UART0_RX_TX_IRQn, 8 );
 
 	//UART configuration
-	UART_GetDefaultConfig ( &uart_config );
-	uart_config.baudRate_Bps = 115200U;
-	uart_config.enableRx = pdTRUE;
-	uart_config.enableTx = pdTRUE;
-	UART_Init ( UART0, &uart_config, CLOCK_GetFreq ( UART0_CLK_SRC ) );
+	UART_GetDefaultConfig ( &uart_pc_config );
+	uart_pc_config.baudRate_Bps = 115200U;
+	uart_pc_config.enableRx = pdTRUE;
+	uart_pc_config.enableTx = pdTRUE;
+	UART_Init ( UART0, &uart_pc_config, CLOCK_GetFreq ( UART0_CLK_SRC ) );
 	UART_TransferCreateHandle ( UART0, &uart_pc_handle, UART0_UserCallback,
 			NULL );
 
 	xTaskCreate ( rx_task, "UART0_RXtask", configMINIMAL_STACK_SIZE,
 			( void* ) cfg_struct, configMAX_PRIORITIES - 3, NULL );
 	xTaskCreate ( tx_task, "UART0_TXtask", configMINIMAL_STACK_SIZE,
+			( void* ) cfg_struct, configMAX_PRIORITIES - 3, NULL );
+	vTaskDelay ( portMAX_DELAY );
+}
+
+void UART1_init_task ( void * arg )
+{
+	menu_cfg_struct_t * cfg_struct = ( menu_cfg_struct_t * ) arg;
+
+	UART1_rx_semaphore = xSemaphoreCreateBinary();
+	UART1_tx_semaphore = xSemaphoreCreateBinary();
+
+	//Port configuration
+	CLOCK_EnableClock ( kCLOCK_PortC );
+	CLOCK_EnableClock ( kCLOCK_Uart1 );
+
+	port_pin_config_t config_bt_uart =
+	{ kPORT_PullDisable, kPORT_SlowSlewRate, kPORT_PassiveFilterDisable,
+			kPORT_OpenDrainDisable, kPORT_LowDriveStrength, kPORT_MuxAlt3,
+			kPORT_UnlockRegister, };
+
+	PORT_SetPinConfig ( PORTC, 3, &config_bt_uart );
+	PORT_SetPinConfig ( PORTC, 4, &config_bt_uart );
+
+	NVIC_EnableIRQ ( UART1_RX_TX_IRQn );
+	NVIC_SetPriority ( UART1_RX_TX_IRQn, 7 );
+
+	//UART configuration
+	UART_GetDefaultConfig ( &uart_bt_config );
+	uart_bt_config.baudRate_Bps = 9600U;
+	uart_bt_config.enableRx = pdTRUE;
+	uart_bt_config.enableTx = pdTRUE;
+	UART_Init ( UART1, &uart_bt_config, CLOCK_GetFreq ( UART1_CLK_SRC ) );
+	UART_TransferCreateHandle ( UART1, &uart_bt_handle, UART1_UserCallback,
+			NULL );
+
+	xTaskCreate ( rx_task, "UART1_RXtask", configMINIMAL_STACK_SIZE,
+			( void* ) cfg_struct, configMAX_PRIORITIES - 3, NULL );
+	xTaskCreate ( tx_task, "UART1_TXtask", configMINIMAL_STACK_SIZE,
 			( void* ) cfg_struct, configMAX_PRIORITIES - 3, NULL );
 	vTaskDelay ( portMAX_DELAY );
 }
@@ -59,6 +97,24 @@ void UART0_UserCallback ( UART_Type *base, uart_handle_t *handle,
 	if (kStatus_UART_TxIdle == status)
 	{
 		xSemaphoreGiveFromISR( UART0_tx_semaphore, &xHigherPriorityTaskWoken );
+	}
+	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+}
+
+//UART interrupt handler for reception
+void UART1_UserCallback ( UART_Type *base, uart_handle_t *handle,
+		status_t status, void *userData )
+{
+	BaseType_t xHigherPriorityTaskWoken;
+	userData = userData;
+	xHigherPriorityTaskWoken = pdFALSE;
+	if (kStatus_UART_RxIdle == status)
+	{
+		xSemaphoreGiveFromISR( UART1_rx_semaphore, &xHigherPriorityTaskWoken );
+	}
+	if (kStatus_UART_TxIdle == status)
+	{
+		xSemaphoreGiveFromISR( UART1_tx_semaphore, &xHigherPriorityTaskWoken );
 	}
 	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 }
