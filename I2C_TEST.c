@@ -46,6 +46,8 @@
 #define I2C_ENABLE (1<<0)
 #define I2C_DONE (1<<1)
 
+#define CLEAR_FEW 1
+
 typedef struct
 {
 	UART_Type * uart_to_comm;
@@ -187,10 +189,15 @@ void esc_sequence_task ( void * arg )
 	{
 		xEventGroupWaitBits ( menu_event_handle, ESC_RECEIVED, pdTRUE, pdTRUE,
 		portMAX_DELAY );
+#if CLEAR_ALL
 		xEventGroupClearBits ( uart_event_handle, ALL_EVENTS );
 		xEventGroupClearBits ( i2c_event_handle, ALL_EVENTS );
 		xEventGroupClearBits ( menu_event_handle, ALL_EVENTS );
 		xQueueReset( rx_queue );
+#endif
+#if CLEAR_FEW
+		xEventGroupClearBits ( uart_event_handle, RX_ENABLE);
+#endif
 		xEventGroupSetBits ( menu_event_handle, ESC_B2MENU );
 	}
 }
