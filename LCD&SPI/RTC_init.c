@@ -35,9 +35,33 @@ static uint8_t string2[] = "Fecha";
 
 void PORTC_IRQHandler()
 {
-	if(0 == GPIO_PinRead(GPIOC, 1<<5))
+	if(0==GPIO_PinRead(GPIOC, 1<<5))
 	{
 		PORT_ClearPinsInterruptFlags(PORTC, 1<<5);
+		PushB_time(0x04,1);
+		//address
+		//valor
+	}
+	if(GPIO_PinRead(GPIOC, 1<<7))
+	{
+		PORT_ClearPinsInterruptFlags(PORTC, 1<<7);
+		PushB_time(0x04,0);
+	}
+	if(GPIO_PinRead(GPIOC, 1<<0))
+	{
+		PORT_ClearPinsInterruptFlags(PORTC, 1<<0);
+	}
+	if(GPIO_PinRead(GPIOC, 1<<9))
+	{
+		PORT_ClearPinsInterruptFlags(PORTC, 1<<9);
+	}
+	if(GPIO_PinRead(GPIOC, 1<<8))
+	{
+		PORT_ClearPinsInterruptFlags(PORTC, 1<<8);
+	}
+	if(GPIO_PinRead(GPIOC, 1<<1))
+	{
+		PORT_ClearPinsInterruptFlags(PORTC, 1<<1);
 	}
 	//GPIO_TogglePinsOutput(GPIOB,1<<21);
 	//BaseType_t xHigherPriorityTaskWoken;
@@ -111,6 +135,44 @@ void GetTime_default_t()
 	}
 }
 
+void PushB_time(uint8_t SubAddress, uint8_t cambio)
+{
+	uint8_t Read_data_push;
+	masterXfer.slaveAddress = SET_ADDRESS_DEFAULT;
+	masterXfer.direction = kI2C_Read;
+	masterXfer.subaddress = SubAddress;
+	masterXfer.subaddressSize = 1;
+	masterXfer.data = &Read_data_push;
+	masterXfer.dataSize = 1;
+	masterXfer.flags = kI2C_TransferDefaultFlag;
+	I2C_MasterTransferNonBlocking(I2C1, &g_m_handle,
+			&masterXfer);
+
+	while (!g_MasterCompletionFlag){}
+	g_MasterCompletionFlag = false;
+
+	if(cambio)
+	{
+		Read_data_push += 0x01;
+	}
+	else{
+		Read_data_push -= 0x01;
+	}
+	//////////////////////////////////////////////
+	masterXfer.slaveAddress = SET_ADDRESS_DEFAULT;
+	masterXfer.direction = kI2C_Write;
+	masterXfer.subaddress = SubAddress;
+	masterXfer.subaddressSize = 1;
+	masterXfer.data = &Read_data_push;
+	masterXfer.dataSize = 1;
+	masterXfer.flags = kI2C_TransferDefaultFlag;
+	I2C_MasterTransferNonBlocking(I2C1,  &g_m_handle,
+			&masterXfer);
+
+	while (!g_MasterCompletionFlag){}
+	g_MasterCompletionFlag = false;
+}
+
 void RTC_Init_t()
 {
 	CLOCK_EnableClock(kCLOCK_PortC);
@@ -145,12 +207,12 @@ void RTC_Init_t()
 	PORT_SetPinConfig(PORTC, 8, &PushB); //setmas_segundos
 	PORT_SetPinConfig(PORTC, 1, &PushB); //setmenos_segundos
 
-	PORT_SetPinInterruptConfig(PORTC, 5, kPORT_InterruptFallingEdge);
-	PORT_SetPinInterruptConfig(PORTC, 7, kPORT_InterruptFallingEdge);
-	PORT_SetPinInterruptConfig(PORTC, 0, kPORT_InterruptFallingEdge);
-	PORT_SetPinInterruptConfig(PORTC, 9, kPORT_InterruptFallingEdge);
-	PORT_SetPinInterruptConfig(PORTC, 8, kPORT_InterruptFallingEdge);
-	PORT_SetPinInterruptConfig(PORTC, 1, kPORT_InterruptFallingEdge);
+	PORT_SetPinInterruptConfig(PORTC, 5, kPORT_InterruptRisingEdge);
+	PORT_SetPinInterruptConfig(PORTC, 7, kPORT_InterruptRisingEdge);
+	PORT_SetPinInterruptConfig(PORTC, 0, kPORT_InterruptRisingEdge);
+	PORT_SetPinInterruptConfig(PORTC, 9, kPORT_InterruptRisingEdge);
+	PORT_SetPinInterruptConfig(PORTC, 8, kPORT_InterruptRisingEdge);
+	PORT_SetPinInterruptConfig(PORTC, 1, kPORT_InterruptRisingEdge);
 
 	gpio_pin_config_t switch_config_gpio =
 	{ kGPIO_DigitalInput, 1 };
@@ -174,6 +236,7 @@ void LCD_SetTime()
 	uint8_t SubAddress = 0x02;
 	for(Counter_time = 0; Counter_time <5; Counter_time++)
 	{
+		g_MasterCompletionFlag = false;
 		masterXfer.slaveAddress = SET_ADDRESS_DEFAULT;
 		masterXfer.direction = kI2C_Read;
 		masterXfer.subaddress = SubAddress;
