@@ -46,7 +46,7 @@
 #define I2C_ENABLE (1<<0)
 #define I2C_DONE (1<<1)
 
-#define CLEAR_QUEUE 1
+#define NO_QUEUE 1
 
 typedef struct
 {
@@ -193,6 +193,9 @@ void esc_sequence_task ( void * arg )
 	{
 		xEventGroupWaitBits ( menu_event_handle, ESC_RECEIVED, pdTRUE, pdTRUE,
 		portMAX_DELAY );
+#ifdef NO_QUEUE
+		xEventGroupClearBits ( uart_event_handle, RX_ENABLE );
+#endif
 #ifdef CLEAR_QUEUE
 		xEventGroupClearBits ( uart_event_handle, ALL_EVENTS );
 		xEventGroupClearBits ( i2c_event_handle, ALL_EVENTS );

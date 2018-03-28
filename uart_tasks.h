@@ -8,7 +8,7 @@
 #ifndef UART_TASKS_H_
 #define UART_TASKS_H_
 
-#include "menu_tasks.h"
+#include "definitions.h"
 #include "FreeRTOS.h"
 
 #include "fsl_port.h"
