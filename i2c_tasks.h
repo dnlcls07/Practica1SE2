@@ -8,7 +8,7 @@
 #ifndef I2C_TASKS_H_
 #define I2C_TASKS_H_
 
-#include "menu_tasks.h"
+#include "definitions.h"
 #include "FreeRTOS.h"
 
 #include "fsl_port.h"
