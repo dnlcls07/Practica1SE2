@@ -46,7 +46,7 @@
 #define I2C_ENABLE (1<<0)
 #define I2C_DONE (1<<1)
 
-#define CLEAR_FEW 1
+#define CLEAR_QUEUE 1
 
 typedef struct
 {
@@ -58,6 +58,7 @@ typedef struct
 SemaphoreHandle_t tx_semaphore;
 SemaphoreHandle_t rx_semaphore;
 SemaphoreHandle_t i2c_semaphore;
+SemaphoreHandle_t i2c_mutex;
 
 EventGroupHandle_t uart_event_handle;
 EventGroupHandle_t menu_event_handle;
@@ -114,8 +115,10 @@ void i2c_task ( void * arg )
 		portMAX_DELAY );
 		xQueueReceive( i2c_queue, &i2c_ptr, portMAX_DELAY );
 		xSemaphoreTake( i2c_semaphore, portMAX_DELAY );
+		xSemaphoreTake( i2c_mutex, portMAX_DELAY );
 		I2C_MasterTransferNonBlocking ( I2C0, &g_m_handle, i2c_ptr );
 		xSemaphoreTake( i2c_semaphore, portMAX_DELAY );
+		xSemaphoreGive( i2c_mutex );
 		xSemaphoreGive( i2c_semaphore );
 		xEventGroupSetBits ( i2c_event_handle, I2C_DONE );
 	}
@@ -185,18 +188,27 @@ void bcd_parser_task ( void * arg )
 
 void esc_sequence_task ( void * arg )
 {
+	uart_pkg_struct_t * dummy_pkg;
 	for ( ;; )
 	{
 		xEventGroupWaitBits ( menu_event_handle, ESC_RECEIVED, pdTRUE, pdTRUE,
 		portMAX_DELAY );
-#if CLEAR_ALL
+#ifdef CLEAR_QUEUE
 		xEventGroupClearBits ( uart_event_handle, ALL_EVENTS );
 		xEventGroupClearBits ( i2c_event_handle, ALL_EVENTS );
 		xEventGroupClearBits ( menu_event_handle, ALL_EVENTS );
-		xQueueReset( rx_queue );
+		while ( uxQueueMessagesWaiting ( rx_queue ) != pdFALSE )
+		{
+			xQueueReceive( rx_queue, &dummy_pkg, portMAX_DELAY );
+			vPortFree ( dummy_pkg );
+		}
 #endif
-#if CLEAR_FEW
-		xEventGroupClearBits ( uart_event_handle, RX_ENABLE);
+#ifdef DELETE_QUEUE
+		xEventGroupClearBits ( uart_event_handle, ALL_EVENTS );
+		xEventGroupClearBits ( i2c_event_handle, ALL_EVENTS );
+		xEventGroupClearBits ( menu_event_handle, ALL_EVENTS );
+		vQueueDelete(rx_queue);
+		rx_queue = xQueueCreate( UART_BUFFER_SIZE, sizeof(void*) );
 #endif
 		xEventGroupSetBits ( menu_event_handle, ESC_B2MENU );
 	}
@@ -489,6 +501,7 @@ void rx_task ( void * arg )
 			rx_data = 0;
 			xEventGroupSetBits ( menu_event_handle, ESC_RECEIVED );
 		}
+		rx_data = uxQueueMessagesWaiting ( rx_queue );
 		rx_data = 0;
 		xEventGroupSetBits ( uart_event_handle, RX_DONE );
 	}
@@ -544,6 +557,7 @@ int main ( void )
 	tx_semaphore = xSemaphoreCreateBinary();
 	rx_semaphore = xSemaphoreCreateBinary();
 	i2c_semaphore = xSemaphoreCreateBinary();
+	i2c_mutex = xSemaphoreCreateMutex();
 
 	uart_event_handle = xEventGroupCreate ();
 	menu_event_handle = xEventGroupCreate ();
