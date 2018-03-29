@@ -35,33 +35,37 @@ static uint8_t string2[] = "Fecha";
 
 void PORTC_IRQHandler()
 {
-	if(0==GPIO_PinRead(GPIOC, 1<<5))
+	if(GPIO_PinRead(GPIOC, 5))
 	{
 		PORT_ClearPinsInterruptFlags(PORTC, 1<<5);
 		PushB_time(0x04,1);
 		//address
 		//valor
 	}
-	if(GPIO_PinRead(GPIOC, 1<<7))
+	if(GPIO_PinRead(GPIOC, 7))
 	{
 		PORT_ClearPinsInterruptFlags(PORTC, 1<<7);
 		PushB_time(0x04,0);
 	}
-	if(GPIO_PinRead(GPIOC, 1<<0))
+	if(GPIO_PinRead(GPIOC, 0))
 	{
 		PORT_ClearPinsInterruptFlags(PORTC, 1<<0);
+		PushB_time(0x03,1);
 	}
-	if(GPIO_PinRead(GPIOC, 1<<9))
+	if(GPIO_PinRead(GPIOC, 9))
 	{
 		PORT_ClearPinsInterruptFlags(PORTC, 1<<9);
+		PushB_time(0x03,0);
 	}
-	if(GPIO_PinRead(GPIOC, 1<<8))
+	if(GPIO_PinRead(GPIOC, 8))
 	{
 		PORT_ClearPinsInterruptFlags(PORTC, 1<<8);
+		PushB_time(0x02,1);
 	}
-	if(GPIO_PinRead(GPIOC, 1<<1))
+	if(GPIO_PinRead(GPIOC, 1))
 	{
 		PORT_ClearPinsInterruptFlags(PORTC, 1<<1);
+		PushB_time(0x02,0);
 	}
 	//GPIO_TogglePinsOutput(GPIOB,1<<21);
 	//BaseType_t xHigherPriorityTaskWoken;
@@ -153,7 +157,13 @@ void PushB_time(uint8_t SubAddress, uint8_t cambio)
 
 	if(cambio)
 	{
-		Read_data_push += 0x01;
+		if(0x04 == SubAddress && Read_data_push == 0x23)
+		{
+			Read_data_push = 0x00;
+		}
+		else{
+			Read_data_push += 0x01;
+		}
 	}
 	else{
 		Read_data_push -= 0x01;
