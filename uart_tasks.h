@@ -25,17 +25,14 @@
 #define TX_ENABLE (1<<2)
 #define TX_DONE (1<<3)
 
-//UART protection semaphores
-SemaphoreHandle_t UART0_rx_semaphore;
-SemaphoreHandle_t UART0_tx_semaphore;
-
-SemaphoreHandle_t UART1_rx_semaphore;
-SemaphoreHandle_t UART1_tx_semaphore;
-
-uart_handle_t uart_pc_handle;
-uart_handle_t uart_bt_handle;
-uart_config_t uart_pc_config;
-uart_config_t uart_bt_config;
+SemaphoreHandle_t * UART0_get_tx_semaphore (void);
+SemaphoreHandle_t * UART0_get_rx_semaphore (void);
+SemaphoreHandle_t * UART1_get_tx_semaphore (void);
+SemaphoreHandle_t * UART1_get_rx_semaphore (void);
+uart_handle_t * UART0_get_handle (void);
+uart_handle_t * UART1_get_handle (void);
+uart_config_t * UART0_get_config (void);
+uart_config_t * UART1_get_config (void);
 
 /********************************************************************************************/
 /*!

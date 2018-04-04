@@ -7,6 +7,59 @@
 
 #include "uart_tasks.h"
 
+//UART protection semaphores
+
+SemaphoreHandle_t UART0_rx_semaphore;
+SemaphoreHandle_t UART0_tx_semaphore;
+
+SemaphoreHandle_t UART1_rx_semaphore;
+SemaphoreHandle_t UART1_tx_semaphore;
+
+uart_handle_t uart_pc_handle;
+uart_handle_t uart_bt_handle;
+uart_config_t uart_pc_config;
+uart_config_t uart_bt_config;
+
+SemaphoreHandle_t * UART0_get_tx_semaphore ( void )
+{
+	return &UART0_tx_semaphore;
+}
+
+SemaphoreHandle_t * UART0_get_rx_semaphore ( void )
+{
+	return &UART0_rx_semaphore;
+}
+
+SemaphoreHandle_t * UART1_get_tx_semaphore ( void )
+{
+	return &UART1_tx_semaphore;
+}
+
+SemaphoreHandle_t * UART1_get_rx_semaphore ( void )
+{
+	return &UART1_rx_semaphore;
+}
+
+uart_handle_t * UART0_get_handle ( void )
+{
+	return &uart_pc_handle;
+}
+
+uart_handle_t * UART1_get_handle ( void )
+{
+	return &uart_bt_handle;
+}
+
+uart_config_t * UART0_get_config ( void )
+{
+	return &uart_pc_config;
+}
+
+uart_config_t * UART1_get_config ( void )
+{
+	return &uart_bt_config;
+}
+
 void UART0_init_task ( void * arg )
 {
 	menu_cfg_struct_t * cfg_struct = ( menu_cfg_struct_t * ) arg;
@@ -42,7 +95,7 @@ void UART0_init_task ( void * arg )
 			( void* ) cfg_struct, configMAX_PRIORITIES - 3, NULL );
 	xTaskCreate ( tx_task, "UART0_TXtask", configMINIMAL_STACK_SIZE,
 			( void* ) cfg_struct, configMAX_PRIORITIES - 3, NULL );
-	vTaskDelay ( portMAX_DELAY );
+	vTaskDelete ( NULL );
 }
 
 void UART1_init_task ( void * arg )
@@ -80,7 +133,7 @@ void UART1_init_task ( void * arg )
 			( void* ) cfg_struct, configMAX_PRIORITIES - 3, NULL );
 	xTaskCreate ( tx_task, "UART1_TXtask", configMINIMAL_STACK_SIZE,
 			( void* ) cfg_struct, configMAX_PRIORITIES - 3, NULL );
-	vTaskDelay ( portMAX_DELAY );
+	vTaskDelete ( NULL );
 }
 
 //UART interrupt handler for reception

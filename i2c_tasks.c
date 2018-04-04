@@ -7,6 +7,26 @@
 
 #include "i2c_tasks.h"
 
+//I2C variables
+i2c_master_handle_t g_m_handle;
+i2c_master_config_t masterConfig;
+SemaphoreHandle_t i2c_semaphore;
+
+i2c_master_handle_t * i2c_get_master_handle ( void )
+{
+	return &g_m_handle;
+}
+
+i2c_master_config_t * i2c_get_i2c_master_config ( void )
+{
+	return &masterConfig;
+}
+
+SemaphoreHandle_t * i2c_get_i2c_semaphore ( void )
+{
+	return &i2c_semaphore;
+}
+
 void i2c_init_task ( void * arg )
 {
 	port_pin_config_t config_i2c =
@@ -27,7 +47,7 @@ void i2c_init_task ( void * arg )
 	NVIC_SetPriority ( I2C0_IRQn, 7 );
 
 	i2c_semaphore = xSemaphoreCreateBinary();
-	vTaskDelay ( portMAX_DELAY );
+	vTaskDelete ( NULL );
 }
 
 void i2c_master_callback ( I2C_Type *base, i2c_master_handle_t *handle,
@@ -49,9 +69,8 @@ void i2c_task ( void * arg )
 	xSemaphoreGive( i2c_semaphore );
 	for ( ;; )
 	{
-		xEventGroupWaitBits ( cfg_struct->i2c_event_handle, I2C_ENABLE, pdTRUE,
-		pdTRUE,
-		portMAX_DELAY );
+		xEventGroupWaitBits ( cfg_struct->i2c_event_handle, I2C_ENABLE,
+		pdTRUE, pdTRUE, portMAX_DELAY );
 		xQueueReceive( cfg_struct->i2c_queue, &i2c_ptr, portMAX_DELAY );
 		xSemaphoreTake( i2c_semaphore, portMAX_DELAY );
 		I2C_MasterTransferNonBlocking ( I2C0, &g_m_handle, i2c_ptr );
