@@ -195,7 +195,7 @@ void menu_sequence_task ( void * arg )
 		uart_pkg = pvPortMalloc ( sizeof(uart_pkg_struct_t) );
 		uart_pkg->data = 0;
 		uart_pkg->uart_handle_to_comm = cfg_struct->uart_handle;
-		uart_pkg->uart_to_comm = UART0;
+		uart_pkg->uart_to_comm = cfg_struct->uart_calling;
 		xQueueSend( cfg_struct->rx_cfg_queue, &uart_pkg, portMAX_DELAY );
 		xEventGroupSetBits ( cfg_struct->uart_event_handle, RX_ENABLE );
 		xEventGroupWaitBits ( cfg_struct->uart_event_handle, RX_DONE, pdTRUE,
