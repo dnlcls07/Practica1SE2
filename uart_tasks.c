@@ -221,6 +221,7 @@ void tx_task ( void * arg )
 
 void rx_task ( void * arg )
 {
+	uint8_t esc_abort_flag;
 	menu_cfg_struct_t * cfg_struct = ( menu_cfg_struct_t * ) arg;
 	uart_pkg_struct_t * rx_config;
 	uart_pkg_struct_t * rx_data_ptr;
@@ -232,6 +233,7 @@ void rx_task ( void * arg )
 	xSemaphoreGive( UART1_rx_semaphore );
 	for ( ;; )
 	{
+		esc_abort_flag = pdFALSE;
 		xEventGroupWaitBits ( cfg_struct->uart_event_handle, RX_ENABLE, pdTRUE,
 		pdTRUE,
 		portMAX_DELAY );
@@ -270,11 +272,15 @@ void rx_task ( void * arg )
 		vPortFree ( rx_config );
 		if (ESC_CHAR == rx_data)
 		{
+			esc_abort_flag = pdTRUE;
 			rx_data = 0;
 			xEventGroupSetBits ( cfg_struct->menu_event_handle, ESC_RECEIVED );
 		}
-		rx_data = 0;
-		xEventGroupSetBits ( cfg_struct->uart_event_handle, RX_DONE );
+		if (pdFALSE == esc_abort_flag)
+		{
+			rx_data = 0;
+			xEventGroupSetBits ( cfg_struct->uart_event_handle, RX_DONE );
+		}
 	}
 }
 
