@@ -66,6 +66,7 @@ void i2c_task ( void * arg )
 {
 	menu_cfg_struct_t * cfg_struct = ( menu_cfg_struct_t * ) arg;
 	i2c_master_transfer_t * i2c_ptr;
+	uint8_t timeout_flag;
 	xSemaphoreGive( i2c_semaphore );
 	for ( ;; )
 	{
@@ -74,8 +75,12 @@ void i2c_task ( void * arg )
 		xQueueReceive( cfg_struct->i2c_queue, &i2c_ptr, portMAX_DELAY );
 		xSemaphoreTake( i2c_semaphore, portMAX_DELAY );
 		I2C_MasterTransferNonBlocking ( I2C0, &g_m_handle, i2c_ptr );
-		xSemaphoreTake( i2c_semaphore, portMAX_DELAY );
+		timeout_flag = xSemaphoreTake( i2c_semaphore, pdMS_TO_TICKS(3000) );
 		xSemaphoreGive( i2c_semaphore );
+		if (pdFALSE == timeout_flag)
+		{
+			xEventGroupSetBits ( cfg_struct->menu_event_handle, ESC_RECEIVED );
+		}
 		xEventGroupSetBits ( cfg_struct->i2c_event_handle, I2C_DONE );
 	}
 }
