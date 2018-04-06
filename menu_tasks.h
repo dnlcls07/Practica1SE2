@@ -26,6 +26,10 @@
 #define UART0_INIT_DONE (1<<0)
 #define UART1_INIT_DONE (1<<1)
 
+#define UART0_CHAT_RDY (1<<0)
+#define UART1_CHAT_RDY (1<<1)
+
+
 /********************************************************************************************/
 /*!
  \brief
@@ -101,5 +105,15 @@ void read_sequence_task ( void * arg );
  \return void
  */
 void write_sequence_task ( void * arg );
+
+/********************************************************************************************/
+/*!
+ \brief
+ Chat sequence. It allows the communication between two terminals. The task actually just sends
+ the user message to the other terminal.
+ \param[in] void
+ \return void
+ */
+void chat_sequence_task ( void * arg );
 
 #endif /* MENU_TASKS_H_ */
