@@ -11,6 +11,7 @@
 i2c_master_handle_t g_m_handle;
 i2c_master_config_t masterConfig;
 SemaphoreHandle_t i2c_semaphore;
+SemaphoreHandle_t i2c_mutex;
 
 i2c_master_handle_t * i2c_get_master_handle ( void )
 {
@@ -47,6 +48,7 @@ void i2c_init_task ( void * arg )
 	NVIC_SetPriority ( I2C0_IRQn, 7 );
 
 	i2c_semaphore = xSemaphoreCreateBinary();
+	i2c_mutex = xSemaphoreCreateMutex();
 	vTaskDelete ( NULL );
 }
 
@@ -74,8 +76,10 @@ void i2c_task ( void * arg )
 		pdTRUE, pdTRUE, portMAX_DELAY );
 		xQueueReceive( cfg_struct->i2c_queue, &i2c_ptr, portMAX_DELAY );
 		xSemaphoreTake( i2c_semaphore, portMAX_DELAY );
+		xSemaphoreTake( i2c_mutex, portMAX_DELAY );
 		I2C_MasterTransferNonBlocking ( I2C0, &g_m_handle, i2c_ptr );
 		timeout_flag = xSemaphoreTake( i2c_semaphore, pdMS_TO_TICKS(3000) );
+		xSemaphoreGive( i2c_mutex );
 		xSemaphoreGive( i2c_semaphore );
 		if (pdFALSE == timeout_flag)
 		{

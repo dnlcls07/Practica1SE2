@@ -193,7 +193,7 @@ void esc_sequence_task ( void * arg )
 		xQueueReset( cfg_struct->rx_queue );
 		if (UART0 == cfg_struct->uart_calling)
 		{
-			xEventGroupClearBits(chat_event, UART0_CHAT_RDY);
+			xEventGroupClearBits ( chat_event, UART0_CHAT_RDY );
 			vTaskDelete ( UART0_read_seq_handle );
 			vTaskDelete ( UART0_write_seq_handle );
 			vTaskDelete ( UART0_chat_seq_handle );
@@ -209,7 +209,7 @@ void esc_sequence_task ( void * arg )
 		}
 		else
 		{
-			xEventGroupClearBits(chat_event, UART1_CHAT_RDY);
+			xEventGroupClearBits ( chat_event, UART1_CHAT_RDY );
 			vTaskDelete ( UART1_read_seq_handle );
 			vTaskDelete ( UART1_write_seq_handle );
 			vTaskDelete ( UART1_chat_seq_handle );
@@ -280,6 +280,7 @@ void menu_sequence_task ( void * arg )
 			default :
 				break;
 		}
+		vPortFree ( uart_pkg );
 		xEventGroupWaitBits ( cfg_struct->menu_event_handle,
 				waitForSeq | ESC_B2MENU,
 				pdTRUE, pdFALSE, portMAX_DELAY );
@@ -466,6 +467,8 @@ void write_sequence_task ( void * arg )
 			msg_received [ msg_cnt ] = uart_pkg->data;
 			vPortFree ( uart_pkg );
 		}
+
+		i2c_xfer_ptr = pvPortMalloc ( sizeof(i2c_master_transfer_t) );
 		i2c_xfer_ptr->slaveAddress = 0x50;
 		i2c_xfer_ptr->direction = kI2C_Write;
 		i2c_xfer_ptr->subaddress = addr;
@@ -473,6 +476,7 @@ void write_sequence_task ( void * arg )
 		i2c_xfer_ptr->flags = kI2C_TransferDefaultFlag;
 		i2c_xfer_ptr->data = &msg_received [ 0 ];
 		i2c_xfer_ptr->dataSize = msg_size;
+
 		xQueueSend( cfg_struct->i2c_queue, &i2c_xfer_ptr, portMAX_DELAY );
 		xEventGroupSetBits ( cfg_struct->i2c_event_handle, I2C_ENABLE );
 		xEventGroupWaitBits ( cfg_struct->i2c_event_handle, I2C_DONE, pdTRUE,
@@ -579,8 +583,7 @@ void chat_sequence_task ( void * arg )
 				{
 					uart_pkg->uart_to_comm = UART0;
 				}
-				xQueueSend( cfg_struct->tx_queue, &uart_pkg,
-						portMAX_DELAY );
+				xQueueSend( cfg_struct->tx_queue, &uart_pkg, portMAX_DELAY );
 			}
 
 			for ( msg_cnt = 0; msg_cnt < msg_size; msg_cnt++ )
@@ -603,8 +606,7 @@ void chat_sequence_task ( void * arg )
 				{
 					uart_pkg->uart_to_comm = UART0;
 				}
-				xQueueSend( cfg_struct->tx_queue, &uart_pkg,
-						portMAX_DELAY );
+				xQueueSend( cfg_struct->tx_queue, &uart_pkg, portMAX_DELAY );
 			}
 			for ( msg_cnt = 0; answer_tail [ msg_cnt ] != '\0'; msg_cnt++ )
 			{
@@ -619,8 +621,7 @@ void chat_sequence_task ( void * arg )
 				{
 					uart_pkg->uart_to_comm = UART0;
 				}
-				xQueueSend( cfg_struct->tx_queue, &uart_pkg,
-						portMAX_DELAY );
+				xQueueSend( cfg_struct->tx_queue, &uart_pkg, portMAX_DELAY );
 			}
 
 			xEventGroupSetBits ( cfg_struct->uart_event_handle,
@@ -636,6 +637,5 @@ void chat_sequence_task ( void * arg )
 			uart_pkg->uart_to_comm = cfg_struct->uart_calling;
 			xQueueSend( cfg_struct->tx_queue, &uart_pkg, portMAX_DELAY );
 		}
-		xEventGroupClearBits ( chat_event, UART0_CHAT_RDY | UART1_CHAT_RDY );
 	}
 }
