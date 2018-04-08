@@ -34,10 +34,12 @@ int main ( void )
 
 	xTaskCreate ( i2c_init_task, "I2C_init", configMINIMAL_STACK_SIZE, NULL,
 	configMAX_PRIORITIES, NULL );
-	xTaskCreate ( UART0_menu_init_task, "UART0_menu_init", configMINIMAL_STACK_SIZE, NULL,
-	configMAX_PRIORITIES - 1, NULL );
-	xTaskCreate ( UART1_menu_init_task, "UART1_menu_init", configMINIMAL_STACK_SIZE, NULL,
-	configMAX_PRIORITIES - 2, NULL );
+	xTaskCreate ( UART0_menu_init_task, "UART0_menu_init",
+			configMINIMAL_STACK_SIZE, NULL,
+			configMAX_PRIORITIES - 1, NULL );
+	xTaskCreate ( UART1_menu_init_task, "UART1_menu_init",
+			configMINIMAL_STACK_SIZE, NULL,
+			configMAX_PRIORITIES - 2, NULL );
 	vTaskStartScheduler ();
 
 	while ( 1 )

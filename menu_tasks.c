@@ -277,36 +277,6 @@ void menu_sequence_task ( void * arg )
 				xEventGroupSetBits ( cfg_struct->menu_event_handle,
 				CHAT_SEQ_ENABLE );
 				waitForSeq = CHAT_SEQ_DONE;
-			case '4' :
-				//establecer hora
-				xEventGroupSetBits ( cfg_struct->menu_event_handle,
-				SET_HOUR_SEQ_ENABLE );
-				waitForSeq = SET_HOUR_SEQ_ENABLE;
-			case '5' :
-				//establecer fecha
-				xEventGroupSetBits ( cfg_struct->menu_event_handle,
-				SET_DATE_SEQ_ENABLE );
-				waitForSeq = SET_DATE_SEQ_ENABLE;
-			case '6' :
-				//formato hora
-				xEventGroupSetBits ( cfg_struct->menu_event_handle,
-				FORMATH_SEQ_ENABLE );
-				waitForSeq = FORMATH_SEQ_ENABLE;
-			case '7' :
-				//leer hora
-				xEventGroupSetBits ( cfg_struct->menu_event_handle,
-				READ_HOUR_SEQ_ENABLE );
-				waitForSeq = READ_HOUR_SEQ_ENABLE;
-			case '8' :
-				//leer fecha
-				xEventGroupSetBits ( cfg_struct->menu_event_handle,
-				READ_DATE_SEQ_ENABLE );
-				waitForSeq = READ_DATE_SEQ_ENABLE;
-			case '9' :
-				//eco
-				xEventGroupSetBits ( cfg_struct->menu_event_handle,
-				ECO_SEQ_ENABLE );
-				waitForSeq = ECO_SEQ_ENABLE;
 			default :
 				break;
 		}
