@@ -116,4 +116,65 @@ void write_sequence_task ( void * arg );
  */
 void chat_sequence_task ( void * arg );
 
+/********************************************************************************************/
+/*!
+ \brief
+ Chat sequence. It allows the communication between two terminals. The task actually just sends
+ the user message to the other terminal.
+ \param[in] void
+ \return void
+ */
+void sethour_sequence_task ( void * arg );
+
+/********************************************************************************************/
+/*!
+ \brief
+ Chat sequence. It allows the communication between two terminals. The task actually just sends
+ the user message to the other terminal.
+ \param[in] void
+ \return void
+ */
+void setdate_sequence_task ( void * arg );
+
+/********************************************************************************************/
+/*!
+ \brief
+ Chat sequence. It allows the communication between two terminals. The task actually just sends
+ the user message to the other terminal.
+ \param[in] void
+ \return void
+ */
+void format_sequence_task ( void * arg );
+
+/********************************************************************************************/
+/*!
+ \brief
+ Chat sequence. It allows the communication between two terminals. The task actually just sends
+ the user message to the other terminal.
+ \param[in] void
+ \return void
+ */
+void readhour_sequence_task ( void * arg );
+
+/********************************************************************************************/
+/*!
+ \brief
+ Chat sequence. It allows the communication between two terminals. The task actually just sends
+ the user message to the other terminal.
+ \param[in] void
+ \return void
+ */
+void readdate_sequence_task ( void * arg );
+
+/********************************************************************************************/
+/*!
+ \brief
+ Chat sequence. It allows the communication between two terminals. The task actually just sends
+ the user message to the other terminal.
+ \param[in] void
+ \return void
+ */
+void eco_sequence_task ( void * arg );
+
+
 #endif /* MENU_TASKS_H_ */

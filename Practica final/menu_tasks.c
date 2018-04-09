@@ -16,10 +16,22 @@ EventGroupHandle_t chat_event;
 TaskHandle_t UART0_read_seq_handle;
 TaskHandle_t UART0_write_seq_handle;
 TaskHandle_t UART0_chat_seq_handle;
+TaskHandle_t UART0_sethour_seq_handle;
+TaskHandle_t UART0_setdate_seq_handle;
+TaskHandle_t UART0_format_seq_handle;
+TaskHandle_t UART0_readhour_seq_handle;
+TaskHandle_t UART0_readdate_seq_handle;
+TaskHandle_t UART0_eco_seq_handle;
 
 TaskHandle_t UART1_read_seq_handle;
 TaskHandle_t UART1_write_seq_handle;
 TaskHandle_t UART1_chat_seq_handle;
+TaskHandle_t UART1_sethour_seq_handle;
+TaskHandle_t UART1_setdate_seq_handle;
+TaskHandle_t UART1_format_seq_handle;
+TaskHandle_t UART1_readhour_seq_handle;
+TaskHandle_t UART1_readdate_seq_handle;
+TaskHandle_t UART1_eco_seq_handle;
 
 void UART0_menu_init_task ( void * arg )
 {
@@ -44,17 +56,35 @@ void UART0_menu_init_task ( void * arg )
 			( void * ) UART0_menu, configMAX_PRIORITIES - 3, NULL );
 	xTaskCreate ( esc_sequence_task, "UART0_ESCTask", configMINIMAL_STACK_SIZE,
 			( void * ) UART0_menu, configMAX_PRIORITIES, NULL );
-
-	xTaskCreate ( write_sequence_task, "UART0_WRtask", configMINIMAL_STACK_SIZE,
+    ////////////////////////////////////////////////////////////////////////////
+	xTaskCreate ( write_sequence_task, "UART0_WRtask", configMINIMAL_STACK_SIZE, //write task
 			( void * ) UART0_menu, configMAX_PRIORITIES - 2,
 			&UART0_write_seq_handle );
-	xTaskCreate ( read_sequence_task, "UART0_RDtask", configMINIMAL_STACK_SIZE,
+	xTaskCreate ( read_sequence_task, "UART0_RDtask", configMINIMAL_STACK_SIZE, //read task
 			( void * ) UART0_menu, configMAX_PRIORITIES - 2,
 			&UART0_read_seq_handle );
-	xTaskCreate ( chat_sequence_task, "UART0_CHATtask",
-	configMINIMAL_STACK_SIZE, ( void * ) UART0_menu,
-	configMAX_PRIORITIES - 2, &UART0_chat_seq_handle );
-
+	xTaskCreate ( chat_sequence_task, "UART0_CHATtask",configMINIMAL_STACK_SIZE, //chat task
+			( void * ) UART0_menu,configMAX_PRIORITIES - 2,
+			&UART0_chat_seq_handle );
+	xTaskCreate ( sethour_sequence_task, "UART0_STHtask",configMINIMAL_STACK_SIZE, //set hour task
+			( void * ) UART0_menu,configMAX_PRIORITIES - 2,
+			&UART0_sethour_seq_handle );
+	xTaskCreate ( setdate_sequence_task, "UART0_STDtask",configMINIMAL_STACK_SIZE, //set date task
+			( void * ) UART0_menu,configMAX_PRIORITIES - 2,
+			&UART0_setdate_seq_handle );
+	xTaskCreate ( format_sequence_task, "UART0_FORMATtask",configMINIMAL_STACK_SIZE, //Format task
+			( void * ) UART0_menu,configMAX_PRIORITIES - 2,
+			&UART0_format_seq_handle );
+	xTaskCreate ( readhour_sequence_task, "UART0_RDHtask",configMINIMAL_STACK_SIZE, //read hour task
+			( void * ) UART0_menu,configMAX_PRIORITIES - 2,
+			&UART0_readhour_seq_handle );
+	xTaskCreate ( readdate_sequence_task, "UART0_RDDtask",configMINIMAL_STACK_SIZE, //read date task
+			( void * ) UART0_menu,configMAX_PRIORITIES - 2,
+			&UART0_readdate_seq_handle );
+	xTaskCreate ( eco_sequence_task, "UART0_ECOtask",configMINIMAL_STACK_SIZE, //eco lcd task
+			( void * ) UART0_menu,configMAX_PRIORITIES - 2,
+			&UART0_eco_seq_handle );
+	////////////////////////////////////////////////////////////////////////////
 	xTaskCreate ( UART0_init_task, "UART0_init", configMINIMAL_STACK_SIZE,
 			( void * ) UART0_menu, configMAX_PRIORITIES, NULL );
 	xTaskCreate ( i2c_init_task, "UART0_I2C_Init", configMINIMAL_STACK_SIZE,
@@ -95,17 +125,35 @@ void UART1_menu_init_task ( void * arg )
 	configMAX_PRIORITIES - 1, NULL );
 	xTaskCreate ( i2c_task, "UART1_I2CTask", configMINIMAL_STACK_SIZE,
 			( void * ) UART1_menu, configMAX_PRIORITIES - 3, NULL );
-
+    //////////////////////////////////////////////////////////////////////////////
 	xTaskCreate ( write_sequence_task, "UART1_WRtask", configMINIMAL_STACK_SIZE,
 			( void * ) UART1_menu, configMAX_PRIORITIES - 2,
 			&UART1_write_seq_handle );
 	xTaskCreate ( read_sequence_task, "UART1_RDtask", configMINIMAL_STACK_SIZE,
 			( void * ) UART1_menu, configMAX_PRIORITIES - 2,
 			&UART1_read_seq_handle );
-	xTaskCreate ( chat_sequence_task, "UART1_CHATtask",
-	configMINIMAL_STACK_SIZE, ( void * ) UART1_menu,
-	configMAX_PRIORITIES - 2, &UART1_chat_seq_handle );
-
+	xTaskCreate ( chat_sequence_task, "UART1_CHATtask", configMINIMAL_STACK_SIZE,
+			( void * ) UART1_menu, configMAX_PRIORITIES - 2,
+			&UART1_chat_seq_handle );
+	xTaskCreate ( sethour_sequence_task, "UART1_STHtask",configMINIMAL_STACK_SIZE, //set hour task
+			( void * ) UART1_menu,configMAX_PRIORITIES - 2,
+			&UART1_sethour_seq_handle );
+	xTaskCreate ( setdate_sequence_task, "UART1_STDtask",configMINIMAL_STACK_SIZE, //set date task
+			( void * ) UART1_menu,configMAX_PRIORITIES - 2,
+			&UART1_setdate_seq_handle );
+	xTaskCreate ( format_sequence_task, "UART1_FORMATtask",configMINIMAL_STACK_SIZE, //Format task
+			( void * ) UART1_menu,configMAX_PRIORITIES - 2,
+			&UART1_format_seq_handle );
+	xTaskCreate ( readhour_sequence_task, "UART1_RDHtask",configMINIMAL_STACK_SIZE, //read hour task
+			( void * ) UART1_menu,configMAX_PRIORITIES - 2,
+			&UART1_readhour_seq_handle );
+	xTaskCreate ( readdate_sequence_task, "UART1_RDDtask",configMINIMAL_STACK_SIZE, //read date task
+			( void * ) UART1_menu,configMAX_PRIORITIES - 2,
+			&UART1_readdate_seq_handle );
+	xTaskCreate ( eco_sequence_task, "UART1_ECOtask",configMINIMAL_STACK_SIZE, //eco lcd task
+			( void * ) UART1_menu,configMAX_PRIORITIES - 2,
+			&UART1_eco_seq_handle );
+    ///////////////////////////////////////////////////////////////////////////////
 	xTaskCreate ( UART1_init_task, "UART1_UART_init", configMINIMAL_STACK_SIZE,
 			( void * ) UART1_menu, configMAX_PRIORITIES, NULL );
 
@@ -357,10 +405,8 @@ void read_sequence_task ( void * arg )
 	uart_pkg_struct_t * i2c_pkg;
 	for ( ;; )
 	{
-
 		xEventGroupWaitBits ( cfg_struct->menu_event_handle, READ_SEQ_ENABLE,
-		pdTRUE,
-		pdTRUE, portMAX_DELAY );
+		pdTRUE,pdTRUE, portMAX_DELAY );
 
 		for ( msg_cnt = 0; read_msg [ msg_cnt ] != '\0'; msg_cnt++ )
 		{
@@ -693,4 +739,29 @@ void chat_sequence_task ( void * arg )
 			xQueueSend( cfg_struct->tx_queue, &uart_pkg, portMAX_DELAY );
 		}
 	}
+}
+
+void sethour_sequence_task ( void * arg )
+{
+
+}
+void setdate_sequence_task ( void * arg )
+{
+
+}
+void format_sequence_task ( void * arg )
+{
+
+}
+void readhour_sequence_task ( void * arg )
+{
+
+}
+void readdate_sequence_task ( void * arg )
+{
+
+}
+void eco_sequence_task ( void * arg )
+{
+
 }
