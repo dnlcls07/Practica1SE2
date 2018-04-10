@@ -224,7 +224,7 @@ void bcd_parser_task ( void * arg )
 			vPortFree ( uart_pkg );
 		}
 		parsed_data = ( ( bcd_data [ 0 ] - '0' ) * 10 )
-																										+ ( bcd_data [ 1 ] - '0' );
+																																+ ( bcd_data [ 1 ] - '0' );
 		xQueueSend( cfg_struct->bcd_queue, &parsed_data, portMAX_DELAY );
 		xEventGroupSetBits ( cfg_struct->menu_event_handle, BCD_DONE );
 	}
@@ -943,5 +943,63 @@ void eco_sequence_task ( void * arg )
 		xEventGroupWaitBits ( cfg_struct->menu_event_handle, ECO_SEQ_ENABLE,
 				pdTRUE,pdTRUE, portMAX_DELAY );
 		xEventGroupSetBits ( cfg_struct->menu_event_handle, ECO_SEQ_DONE );
+	}
+}
+void GetTime_default_t(void * arg)
+{
+	i2c_master_transfer_t * i2c_xfer_ptr;
+	menu_cfg_struct_t * cfg_struct = ( menu_cfg_struct_t * ) arg;
+	uint8_t Counter = 0;
+	uint8_t SubAddress = 0x02;
+	uint8_t data_buffer = SET_SECONDS_DEFAULT;
+	uint8_t buffer_0h = 0x08;
+
+	i2c_xfer_ptr = pvPortMalloc ( sizeof(i2c_master_transfer_t) );
+	i2c_xfer_ptr->slaveAddress = 0x50;
+	i2c_xfer_ptr->direction = kI2C_Write;
+	i2c_xfer_ptr->subaddress = 0x00;
+	i2c_xfer_ptr->subaddressSize = 1;
+	i2c_xfer_ptr->flags = kI2C_TransferDefaultFlag;
+	i2c_xfer_ptr->data = &buffer_0h;
+	i2c_xfer_ptr->dataSize = 1;
+
+	xQueueSend( cfg_struct->i2c_queue, &i2c_xfer_ptr, portMAX_DELAY );
+	xEventGroupSetBits ( cfg_struct->i2c_event_handle, I2C_ENABLE );
+	xEventGroupWaitBits ( cfg_struct->i2c_event_handle, I2C_DONE, pdTRUE,
+			pdTRUE,portMAX_DELAY );
+
+	for(Counter = 0; Counter < 5; Counter++)
+	{
+		i2c_xfer_ptr = pvPortMalloc ( sizeof(i2c_master_transfer_t) );
+		i2c_xfer_ptr->slaveAddress = 0x50;
+		i2c_xfer_ptr->direction = kI2C_Write;
+		i2c_xfer_ptr->subaddress = SubAddress;
+		i2c_xfer_ptr->subaddressSize = 1;
+		i2c_xfer_ptr->flags = kI2C_TransferDefaultFlag;
+		i2c_xfer_ptr->data = &data_buffer;
+		i2c_xfer_ptr->dataSize = 1;
+
+		xQueueSend( cfg_struct->i2c_queue, &i2c_xfer_ptr, portMAX_DELAY );
+		xEventGroupSetBits ( cfg_struct->i2c_event_handle, I2C_ENABLE );
+		xEventGroupWaitBits ( cfg_struct->i2c_event_handle, I2C_DONE, pdTRUE,
+				pdTRUE,portMAX_DELAY );
+
+		SubAddress += 0x01;
+		if(SubAddress == 0x03 )
+		{
+			data_buffer = SET_MINUTES_DEFAULT;
+		}
+		else if (SubAddress == 0x04)
+		{
+			data_buffer = SET_HOURS_DEFAULT;
+		}
+		else if (SubAddress == 0x05)    //year/date
+		{
+			data_buffer = 0x31;
+		}
+		else if (SubAddress == 0x06)       //mes
+		{
+			data_buffer = 0x12;
+		}
 	}
 }

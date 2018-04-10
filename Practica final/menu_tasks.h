@@ -29,6 +29,11 @@
 #define UART0_CHAT_RDY (1<<0)
 #define UART1_CHAT_RDY (1<<1)
 
+#define SET_SECONDS_DEFAULT 0x00
+#define SET_MINUTES_DEFAULT 0x59
+#define SET_HOURS_DEFAULT 0x23
+#define SET_ADDRESS_DEFAULT 0x50
+#define YEAR_DEFAULT 0x2018
 
 /********************************************************************************************/
 /*!
@@ -175,6 +180,16 @@ void readdate_sequence_task ( void * arg );
  \return void
  */
 void eco_sequence_task ( void * arg );
+
+/********************************************************************************************/
+/*!
+ \brief
+ Chat sequence. It allows the communication between two terminals. The task actually just sends
+ the user message to the other terminal.
+ \param[in] void
+ \return void
+ */
+void GetTime_default_t(void * arg);
 
 
 #endif /* MENU_TASKS_H_ */
