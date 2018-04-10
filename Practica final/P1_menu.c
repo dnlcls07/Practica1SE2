@@ -12,6 +12,7 @@
 #include "fsl_gpio.h"
 #include "fsl_uart.h"
 #include "fsl_i2c.h"
+#include "fsl_dspi.h"
 
 #include "task.h"
 #include "queue.h"
@@ -20,6 +21,7 @@
 #include "definitions.h"
 #include "menu_tasks.h"
 #include "i2c_tasks.h"
+#include "Spi_tasks.h"
 #include "uart_tasks.h"
 
 int main ( void )
@@ -33,13 +35,15 @@ int main ( void )
 //Task startup
 
 	xTaskCreate ( i2c_init_task, "I2C_init", configMINIMAL_STACK_SIZE, NULL,
-	configMAX_PRIORITIES, NULL );
+			configMAX_PRIORITIES, NULL );
+	xTaskCreate ( SPI_init_task, "SPI_init", configMINIMAL_STACK_SIZE, NULL,
+			configMAX_PRIORITIES - 1, NULL );
 	xTaskCreate ( UART0_menu_init_task, "UART0_menu_init",
 			configMINIMAL_STACK_SIZE, NULL,
-			configMAX_PRIORITIES - 1, NULL );
+			configMAX_PRIORITIES - 2, NULL );
 	xTaskCreate ( UART1_menu_init_task, "UART1_menu_init",
 			configMINIMAL_STACK_SIZE, NULL,
-			configMAX_PRIORITIES - 2, NULL );
+			configMAX_PRIORITIES - 3, NULL );
 	vTaskStartScheduler ();
 
 	while ( 1 )
