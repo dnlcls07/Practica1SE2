@@ -6,6 +6,7 @@
  */
 
 #include "Spi_tasks.h"
+#include "LCDNokia5110.h"
 
 //variables
 dspi_master_config_t g_m_handle;
@@ -65,5 +66,6 @@ void SPI_init_task ( void * arg )
 
 	SPI_semaphore = xSemaphoreCreateBinary();
 	SPI_mutex = xSemaphoreCreateMutex();
+	LCDNokia_init();
 	vTaskDelete ( NULL );
 }
