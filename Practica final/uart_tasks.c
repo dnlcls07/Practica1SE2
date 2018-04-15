@@ -181,8 +181,14 @@ void tx_task ( void * arg )
 	uart_transfer_t uart_echo_xfer;
 	uart_echo_xfer.data = &tx_data;
 	uart_echo_xfer.dataSize = sizeof(char);
-	xSemaphoreGive( UART0_tx_semaphore );
-	xSemaphoreGive( UART1_tx_semaphore );
+	if (UART0 == cfg_struct->uart_calling)
+	{
+		xSemaphoreGive( UART0_tx_semaphore );
+	}
+	else
+	{
+		xSemaphoreGive( UART1_tx_semaphore );
+	}
 	for ( ;; )
 	{
 		xEventGroupWaitBits ( cfg_struct->uart_event_handle, TX_ENABLE, pdTRUE,
@@ -229,8 +235,14 @@ void rx_task ( void * arg )
 	uart_transfer_t uart_rx_xfer;
 	uart_rx_xfer.data = &rx_data;
 	uart_rx_xfer.dataSize = sizeof(char);
-	xSemaphoreGive( UART0_rx_semaphore );
-	xSemaphoreGive( UART1_rx_semaphore );
+	if (UART0 == cfg_struct->uart_calling)
+	{
+		xSemaphoreGive( UART0_rx_semaphore );
+	}
+	else
+	{
+		xSemaphoreGive( UART1_rx_semaphore );
+	}
 	for ( ;; )
 	{
 		esc_abort_flag = pdFALSE;

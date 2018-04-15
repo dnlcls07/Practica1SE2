@@ -46,6 +46,9 @@
 #define ESC_RECEIVED (1<<22)
 #define ESC_B2MENU (1<<23)
 
+#define HOUR_BCD_ENABLE (1<<24)
+#define HOUR_BCD_DONE (1<<25)
+
 #define RETURN_CHAR 0x0D
 #define ESC_CHAR 0x23
 #define ALL_EVENTS 0x7FFFFF

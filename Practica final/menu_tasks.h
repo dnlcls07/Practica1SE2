@@ -191,5 +191,6 @@ void eco_sequence_task ( void * arg );
  */
 void GetTime_default_t(void * arg);
 
+void hour_bcd_task (void *arg);
 
 #endif /* MENU_TASKS_H_ */

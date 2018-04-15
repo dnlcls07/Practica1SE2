@@ -63,7 +63,7 @@ void UART0_menu_init_task ( void * arg )
 	xTaskCreate ( read_sequence_task, "UART0_RDtask", configMINIMAL_STACK_SIZE, //read task
 			( void * ) UART0_menu, configMAX_PRIORITIES - 2,
 			&UART0_read_seq_handle );
-	xTaskCreate ( chat_sequence_task, "UART0_CHATtask",configMINIMAL_STACK_SIZE, //chat task
+	xTaskCreate ( chat_sequence_task, "UART0_CHATtask",configMINIMAL_STACK_SIZE * 2, //chat task
 			( void * ) UART0_menu,configMAX_PRIORITIES - 2,
 			&UART0_chat_seq_handle );
 	xTaskCreate ( sethour_sequence_task, "UART0_STHtask",configMINIMAL_STACK_SIZE, //set hour task
@@ -93,6 +93,8 @@ void UART0_menu_init_task ( void * arg )
 	xTaskCreate ( addr_parser_task, "UART0_ADDRtask", configMINIMAL_STACK_SIZE,
 			( void * ) UART0_menu, configMAX_PRIORITIES - 4, NULL );
 	xTaskCreate ( bcd_parser_task, "UART0_BCDTask", configMINIMAL_STACK_SIZE,
+			( void * ) UART0_menu, configMAX_PRIORITIES - 4, NULL );
+	xTaskCreate ( hour_bcd_task, "UART0_HRBCDtask", configMINIMAL_STACK_SIZE,
 			( void * ) UART0_menu, configMAX_PRIORITIES - 4, NULL );
 	xTaskCreate ( menu_sequence_task, "UART0_MenuTask",
 			configMINIMAL_STACK_SIZE, ( void * ) UART0_menu,
@@ -161,6 +163,8 @@ void UART1_menu_init_task ( void * arg )
 			( void * ) UART1_menu, configMAX_PRIORITIES - 4, NULL );
 	xTaskCreate ( bcd_parser_task, "UART1_BCDTask", configMINIMAL_STACK_SIZE,
 			( void * ) UART1_menu, configMAX_PRIORITIES - 4, NULL );
+	xTaskCreate ( hour_bcd_task, "UART1_HRBCDtask", configMINIMAL_STACK_SIZE,
+			( void * ) UART1_menu, configMAX_PRIORITIES - 4, NULL );
 	xEventGroupSetBits ( init_event, UART1_INIT_DONE );
 	vTaskDelete ( NULL );
 }
@@ -224,7 +228,7 @@ void bcd_parser_task ( void * arg )
 			vPortFree ( uart_pkg );
 		}
 		parsed_data = ( ( bcd_data [ 0 ] - '0' ) * 10 )
-																																+ ( bcd_data [ 1 ] - '0' );
+																																								+ ( bcd_data [ 1 ] - '0' );
 		xQueueSend( cfg_struct->bcd_queue, &parsed_data, portMAX_DELAY );
 		xEventGroupSetBits ( cfg_struct->menu_event_handle, BCD_DONE );
 	}
@@ -245,6 +249,13 @@ void esc_sequence_task ( void * arg )
 			vTaskDelete ( UART0_read_seq_handle );
 			vTaskDelete ( UART0_write_seq_handle );
 			vTaskDelete ( UART0_chat_seq_handle );
+			vTaskDelete ( UART0_sethour_seq_handle );
+			vTaskDelete ( UART0_setdate_seq_handle );
+			vTaskDelete ( UART0_format_seq_handle );
+			vTaskDelete ( UART0_readhour_seq_handle );
+			vTaskDelete ( UART0_readdate_seq_handle );
+			vTaskDelete ( UART0_eco_seq_handle );
+
 			xTaskCreate ( write_sequence_task, "UART0_WRtask",
 					configMINIMAL_STACK_SIZE, ( void * ) cfg_struct,
 					configMAX_PRIORITIES - 2, &UART0_write_seq_handle );
@@ -254,6 +265,24 @@ void esc_sequence_task ( void * arg )
 			xTaskCreate ( chat_sequence_task, "UART0_CHATtask",
 					configMINIMAL_STACK_SIZE, ( void * ) cfg_struct,
 					configMAX_PRIORITIES - 2, &UART0_chat_seq_handle );
+			xTaskCreate ( sethour_sequence_task, "UART0_STHtask",
+					configMINIMAL_STACK_SIZE, ( void * ) cfg_struct,
+					configMAX_PRIORITIES - 2, &UART0_sethour_seq_handle );
+			xTaskCreate ( setdate_sequence_task, "UART0_STDtask",
+					configMINIMAL_STACK_SIZE, ( void * ) cfg_struct,
+					configMAX_PRIORITIES - 2, &UART0_setdate_seq_handle );
+			xTaskCreate ( format_sequence_task, "UART0_FORMATtask",
+					configMINIMAL_STACK_SIZE, ( void * ) cfg_struct,
+					configMAX_PRIORITIES - 2, &UART0_format_seq_handle );
+			xTaskCreate ( readhour_sequence_task, "UART0_RDHtask",
+					configMINIMAL_STACK_SIZE, ( void * ) cfg_struct,
+					configMAX_PRIORITIES - 2, &UART0_readhour_seq_handle );
+			xTaskCreate ( readdate_sequence_task, "UART0_RDDtask",
+					configMINIMAL_STACK_SIZE, ( void * ) cfg_struct,
+					configMAX_PRIORITIES - 2, &UART0_readdate_seq_handle );
+			xTaskCreate ( eco_sequence_task, "UART0_ECOtask",
+					configMINIMAL_STACK_SIZE, ( void * ) cfg_struct,
+					configMAX_PRIORITIES - 2, &UART0_eco_seq_handle );
 		}
 		else
 		{
@@ -261,6 +290,13 @@ void esc_sequence_task ( void * arg )
 			vTaskDelete ( UART1_read_seq_handle );
 			vTaskDelete ( UART1_write_seq_handle );
 			vTaskDelete ( UART1_chat_seq_handle );
+			vTaskDelete ( UART1_sethour_seq_handle );
+			vTaskDelete ( UART1_setdate_seq_handle );
+			vTaskDelete ( UART1_format_seq_handle );
+			vTaskDelete ( UART1_readhour_seq_handle );
+			vTaskDelete ( UART1_readdate_seq_handle );
+			vTaskDelete ( UART1_eco_seq_handle );
+
 			xTaskCreate ( write_sequence_task, "UART1_WRtask",
 					configMINIMAL_STACK_SIZE, ( void * ) cfg_struct,
 					configMAX_PRIORITIES - 2, &UART1_write_seq_handle );
@@ -270,6 +306,24 @@ void esc_sequence_task ( void * arg )
 			xTaskCreate ( chat_sequence_task, "UART1_CHATtask",
 					configMINIMAL_STACK_SIZE, ( void * ) cfg_struct,
 					configMAX_PRIORITIES - 2, &UART1_chat_seq_handle );
+			xTaskCreate ( sethour_sequence_task, "UART1_STHtask",
+					configMINIMAL_STACK_SIZE, ( void * ) cfg_struct,
+					configMAX_PRIORITIES - 2, &UART1_sethour_seq_handle );
+			xTaskCreate ( setdate_sequence_task, "UART1_STDtask",
+					configMINIMAL_STACK_SIZE, ( void * ) cfg_struct,
+					configMAX_PRIORITIES - 2, &UART1_setdate_seq_handle );
+			xTaskCreate ( format_sequence_task, "UART1_FORMATtask",
+					configMINIMAL_STACK_SIZE, ( void * ) cfg_struct,
+					configMAX_PRIORITIES - 2, &UART1_format_seq_handle );
+			xTaskCreate ( readhour_sequence_task, "UART1_RDHtask",
+					configMINIMAL_STACK_SIZE, ( void * ) cfg_struct,
+					configMAX_PRIORITIES - 2, &UART1_readhour_seq_handle );
+			xTaskCreate ( readdate_sequence_task, "UART1_RDDtask",
+					configMINIMAL_STACK_SIZE, ( void * ) cfg_struct,
+					configMAX_PRIORITIES - 2, &UART1_readdate_seq_handle );
+			xTaskCreate ( eco_sequence_task, "UART1_ECOtask",
+					configMINIMAL_STACK_SIZE, ( void * ) cfg_struct,
+					configMAX_PRIORITIES - 2, &UART1_eco_seq_handle );
 		}
 		xEventGroupSetBits ( cfg_struct->menu_event_handle, ESC_B2MENU );
 	}
@@ -356,30 +410,37 @@ void menu_sequence_task ( void * arg )
 			xEventGroupSetBits ( cfg_struct->menu_event_handle,
 					CHAT_SEQ_ENABLE );
 			waitForSeq = CHAT_SEQ_DONE;
+			break;
 		case '4' :
 			xEventGroupSetBits ( cfg_struct->menu_event_handle,
 					SETHOUR_SEQ_ENABLE );
 			waitForSeq = SETHOUR_SEQ_DONE;
+			break;
 		case '5' :
 			xEventGroupSetBits ( cfg_struct->menu_event_handle,
 					SETDATE_SEQ_ENABLE );
 			waitForSeq = SETDATE_SEQ_DONE;
+			break;
 		case '6' :
 			xEventGroupSetBits ( cfg_struct->menu_event_handle,
 					FORMAT_SEQ_ENABLE );
 			waitForSeq = FORMAT_SEQ_DONE;
+			break;
 		case '7' :
 			xEventGroupSetBits ( cfg_struct->menu_event_handle,
 					READHOUR_SEQ_ENABLE );
 			waitForSeq = READHOUR_SEQ_DONE;
+			break;
 		case '8' :
 			xEventGroupSetBits ( cfg_struct->menu_event_handle,
 					READDATE_SEQ_ENABLE );
 			waitForSeq = READDATE_SEQ_DONE;
+			break;
 		case '9' :
 			xEventGroupSetBits ( cfg_struct->menu_event_handle,
 					ECO_SEQ_ENABLE );
 			waitForSeq = ECO_SEQ_DONE;
+			break;
 		default :
 			break;
 		}
@@ -555,6 +616,7 @@ void write_sequence_task ( void * arg )
 		xEventGroupSetBits ( cfg_struct->uart_event_handle, RX_ENABLE );
 		xEventGroupWaitBits ( cfg_struct->uart_event_handle, RX_DONE, pdTRUE,
 				pdTRUE, portMAX_DELAY );
+
 		xQueueReceive( cfg_struct->addr_queue, &addr, portMAX_DELAY );
 		msg_size = uxQueueMessagesWaiting ( cfg_struct->rx_queue );
 
@@ -579,8 +641,7 @@ void write_sequence_task ( void * arg )
 		xQueueSend( cfg_struct->i2c_queue, &i2c_xfer_ptr, portMAX_DELAY );
 		xEventGroupSetBits ( cfg_struct->i2c_event_handle, I2C_ENABLE );
 		xEventGroupWaitBits ( cfg_struct->i2c_event_handle, I2C_DONE, pdTRUE,
-				pdTRUE,
-				portMAX_DELAY );
+				pdTRUE,portMAX_DELAY );
 
 		xEventGroupSetBits ( cfg_struct->menu_event_handle, WRITE_SEQ_DONE );
 	}
@@ -745,12 +806,10 @@ void sethour_sequence_task ( void * arg )
 	menu_cfg_struct_t * cfg_struct = ( menu_cfg_struct_t * ) arg;
 	uint8_t msg_cnt;
 	uint8_t sethour_msg [ ] = "\n\rEscribir hora en formato hh\n\r\0";
-	uint8_t sethmin_msg [ ] = "\n\rEscribir minutos en formato mm\n\r\0";
-	uint8_t sethseg_msg [ ] = "\n\rEscribir segundos en formato ss\n\r\0";
-	uint8_t sethourready_msg [ ] = "\n\rLa hora ha sido cambiada...\n\r\0";
+
 	uart_pkg_struct_t * uart_pkg;
 	uint8_t msg_size;
-	uint16_t addr;
+	uint16_t data_set;
 	i2c_master_transfer_t * i2c_xfer_ptr;
 
 	for ( ;; )
@@ -774,45 +833,55 @@ void sethour_sequence_task ( void * arg )
 		uart_pkg->data = 0;
 		uart_pkg->uart_handle_to_comm = cfg_struct->uart_handle;
 		uart_pkg->uart_to_comm = cfg_struct->uart_calling;
-
 		xQueueSend( cfg_struct->rx_cfg_queue, &uart_pkg, portMAX_DELAY );
 		xEventGroupSetBits ( cfg_struct->uart_event_handle, RX_ENABLE );
 		xEventGroupWaitBits ( cfg_struct->uart_event_handle, RX_DONE, pdTRUE,
 				pdTRUE,	portMAX_DELAY );
-		xEventGroupSetBits ( cfg_struct->menu_event_handle, ADDR_ENABLE );
-		xEventGroupWaitBits ( cfg_struct->menu_event_handle, ADDR_DONE, pdTRUE,
+		xEventGroupSetBits ( cfg_struct->menu_event_handle, HOUR_BCD_ENABLE );
+		xEventGroupWaitBits ( cfg_struct->menu_event_handle, HOUR_BCD_DONE, pdTRUE,
 				pdTRUE, portMAX_DELAY );
-
-		xQueueReceive( cfg_struct->addr_queue, &addr, portMAX_DELAY );
-
-		i2c_xfer_ptr = pvPortMalloc ( sizeof(i2c_master_transfer_t) );
-		i2c_xfer_ptr->slaveAddress = 0x50;
-		i2c_xfer_ptr->direction = kI2C_Write;
-		i2c_xfer_ptr->subaddress = addr;
-		i2c_xfer_ptr->subaddressSize = 2;
-		i2c_xfer_ptr->flags = kI2C_TransferDefaultFlag;
-		//		i2c_xfer_ptr->data = &msg_received [ 0 ];
-		i2c_xfer_ptr->dataSize = msg_size;
-
-		xQueueSend( cfg_struct->i2c_queue, &i2c_xfer_ptr, portMAX_DELAY );
-		xEventGroupSetBits ( cfg_struct->i2c_event_handle, I2C_ENABLE );
-		xEventGroupWaitBits ( cfg_struct->i2c_event_handle, I2C_DONE, pdTRUE,
-				pdTRUE,portMAX_DELAY );
-		// set hour ready
-		for ( msg_cnt = 0; sethourready_msg [ msg_cnt ] != '\0'; msg_cnt++ )
-		{
-			uart_pkg = pvPortMalloc ( sizeof(uart_pkg_struct_t) );
-			uart_pkg->data = sethourready_msg [ msg_cnt ];
-			uart_pkg->uart_handle_to_comm = cfg_struct->uart_handle;
-			uart_pkg->uart_to_comm = cfg_struct->uart_calling;
-			xQueueSend( cfg_struct->tx_queue, &uart_pkg, portMAX_DELAY );
-		}
-		xEventGroupSetBits ( cfg_struct->uart_event_handle, TX_ENABLE );
-		xEventGroupWaitBits ( cfg_struct->uart_event_handle, TX_DONE, pdTRUE,
-				pdTRUE, portMAX_DELAY );
-
+		xQueueReceive( cfg_struct->addr_queue, &data_set, portMAX_DELAY );
 		xEventGroupSetBits ( cfg_struct->menu_event_handle, SETHOUR_SEQ_DONE );
 	}
+}
+
+void hour_bcd_task (void *arg)
+{
+	menu_cfg_struct_t * cfg_struct = ( menu_cfg_struct_t * ) arg;
+	uart_pkg_struct_t * uart_pkg;
+	uint8_t msg_cnt;
+	uint16_t hour_real [ 7 ];
+	//	uint16_t ready_hour;
+	for ( ;; )
+	{
+//		xEventGroupWaitBits ( cfg_struct->menu_event_handle, HOUR_BCD_ENABLE,
+//				pdTRUE, pdTRUE, portMAX_DELAY );
+		for ( msg_cnt = 0; msg_cnt <= 7; msg_cnt++ )
+		{
+			xQueueReceive( cfg_struct->rx_queue, &uart_pkg, portMAX_DELAY );
+			hour_real [ msg_cnt ] = uart_pkg->data;
+			vPortFree ( uart_pkg );
+		}
+		//		if (addr [ 0 ] >= 65)	//If the data is A-F, set to its value
+		//			relative_addr = ( addr [ 0 ] - '7' ) * 4096;//Multiply by 16^3 to set the equivalent value according to the position
+		//		else
+		//			relative_addr = ( addr [ 0 ] - '0' ) * 4096;//If not, the data is 0-9
+		//		if (addr [ 1 ] >= 65)
+		//			relative_addr += ( addr [ 1 ] - '7' ) * 256;	//Multiply by 16^2
+		//		else
+		//			relative_addr += ( addr [ 1 ] - '0' ) * 256;
+		//		if (addr [ 2 ] >= 65)
+		//			relative_addr += ( addr [ 2 ] - '7' ) * 16;	//Multiply by 16^1
+		//		else
+		//			relative_addr += ( addr [ 2 ] - '0' ) * 16;
+		//		if (addr [ 3 ] >= 65)
+		//			relative_addr += addr [ 3 ] - '7';			//Multiply by 16^0
+		//		else
+		//			relative_addr += addr [ 3 ] - '0';
+		xQueueSend( cfg_struct->addr_queue, &hour_real, portMAX_DELAY );
+		xEventGroupSetBits ( cfg_struct->menu_event_handle, HOUR_BCD_DONE );
+	}
+
 }
 
 void setdate_sequence_task ( void * arg )
