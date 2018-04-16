@@ -70,6 +70,7 @@ typedef struct
 	QueueHandle_t rx_cfg_queue;
 	QueueHandle_t addr_queue;
 	QueueHandle_t bcd_queue;
+	QueueHandle_t hour_bcd_queue;
 	QueueHandle_t i2c_queue;
 } menu_cfg_struct_t;
 
