@@ -2,7 +2,7 @@
  * menu_tasks.h
  *
  *  Created on: Mar 26, 2018
- *      Author: dceli
+ *      Author: Daniel Celis & Gustavo Araiza
  */
 
 #ifndef MENU_TASKS_H_
@@ -34,6 +34,8 @@
 #define SET_HOURS_DEFAULT 0x23
 #define SET_ADDRESS_DEFAULT 0x50
 #define YEAR_DEFAULT 0x2018
+
+
 
 /********************************************************************************************/
 /*!
@@ -124,8 +126,7 @@ void chat_sequence_task ( void * arg );
 /********************************************************************************************/
 /*!
  \brief
- Chat sequence. It allows the communication between two terminals. The task actually just sends
- the user message to the other terminal.
+ Set Hour sequence. Esta funcion permite establecer la hora en el RTC a traves de una terminal
  \param[in] void
  \return void
  */
@@ -134,8 +135,7 @@ void sethour_sequence_task ( void * arg );
 /********************************************************************************************/
 /*!
  \brief
- Chat sequence. It allows the communication between two terminals. The task actually just sends
- the user message to the other terminal.
+ Set date sequence. Esta funcion permite establecer la fecha en el RTC a traves de una terminal
  \param[in] void
  \return void
  */
@@ -144,8 +144,7 @@ void setdate_sequence_task ( void * arg );
 /********************************************************************************************/
 /*!
  \brief
- Chat sequence. It allows the communication between two terminals. The task actually just sends
- the user message to the other terminal.
+ format sequence. Con esta funcion se puede cambiar el formato entre 12 y 24 horas.
  \param[in] void
  \return void
  */
@@ -154,8 +153,8 @@ void format_sequence_task ( void * arg );
 /********************************************************************************************/
 /*!
  \brief
- Chat sequence. It allows the communication between two terminals. The task actually just sends
- the user message to the other terminal.
+ Read hour sequence. Con esta tarea se puede leer la hora en tiempo real para desplegar en
+ una terminal
  \param[in] void
  \return void
  */
@@ -164,8 +163,8 @@ void readhour_sequence_task ( void * arg );
 /********************************************************************************************/
 /*!
  \brief
- Chat sequence. It allows the communication between two terminals. The task actually just sends
- the user message to the other terminal.
+ Read date sequence. con esta tarea es posible leer la fecha del RTC y desplegarlo en una
+ terminal.
  \param[in] void
  \return void
  */
@@ -174,8 +173,7 @@ void readdate_sequence_task ( void * arg );
 /********************************************************************************************/
 /*!
  \brief
- Chat sequence. It allows the communication between two terminals. The task actually just sends
- the user message to the other terminal.
+ Eco sequence. esta tarea activa la funcion de modo eco en la LCD.
  \param[in] void
  \return void
  */
@@ -184,13 +182,11 @@ void eco_sequence_task ( void * arg );
 /********************************************************************************************/
 /*!
  \brief
- Chat sequence. It allows the communication between two terminals. The task actually just sends
- the user message to the other terminal.
+ esta tarea establece por default unos valores predeterminados para e RTC y su funconamiento.
  \param[in] void
  \return void
  */
 void GetTime_default_t(void * arg);
 
-void hour_bcd_task (void *arg);
 
 #endif /* MENU_TASKS_H_ */

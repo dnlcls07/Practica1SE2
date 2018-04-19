@@ -2,7 +2,7 @@
  * Spi_tasks.h
  *
  *  Created on: Apr 9, 2018
- *      Author: mango
+ *      Author: Gustavo
  */
 
 #ifndef SPI_TASKS_H_
